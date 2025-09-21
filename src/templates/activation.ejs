@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activate Your Account</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f8ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .welcome-text {
+            color: #4f46e5;
+            font-size: 20px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .instruction {
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .activation-code {
+            background: #f1f5f9;
+            border: 2px dashed #4f46e5;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .activation-code h3 {
+            font-size: 32px;
+            letter-spacing: 3px;
+            color: #4f46e5;
+            font-weight: 700;
+        }
+        
+        .expiry-notice {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 30px 0;
+            color: #92400e;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+            font-size: 14px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .button {
+            display: inline-block;
+            background: #4f46e5;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 500;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+            background: #4338ca;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        
+        @media (max-width: 640px) {
+            .content {
+                padding: 25px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .activation-code h3 {
+                font-size: 24px;
+                letter-spacing: 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>নাগরিক চালিত ইস্যু রিপোর্টিং সিস্টেম</h1>
+            <p>আপনার অ্যাকাউন্ট সক্রিয় করুন</p>
+        </div>
+        
+        <div class="content">
+            <h2 class="welcome-text">আমাদের কমিউনিটিতে যোগদানের জন্য ধন্যবাদ! 🎉</h2>
+            
+            <p class="instruction">আপনার অ্যাকাউন্ট সক্রিয় করতে নিচের অ্যাক্টিভেশন কোডটি ব্যবহার করুন। কোডটি নিচের বক্সে প্রবেশ করান বা সরাসরি লিঙ্কে ক্লিক করুন:</p>
+            
+            <div class="activation-code">
+                <h3><%= activationCode %></h3>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="#" class="button">অ্যাকাউন্ট সক্রিয় করুন</a>
+            </div>
+            
+            <div class="expiry-notice">
+                <p>⚠️ এই কোডটি 5 মিনিটের মধ্যে মেয়াদ উত্তীর্ণ হবে। দয়া করে সময়ের মধ্যে এটি ব্যবহার করুন।</p>
+            </div>
+            
+            <p class="instruction">আপনার যদি কোনো সমস্যা হয় বা এই অনুরোধটি আপনার দ্বারা করা না হয়ে থাকে, দয়া করে এই ইমেইলটি উপেক্ষা করুন।</p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2023 নাগরিক চালিত ইস্যু রিপোর্টিং ও ট্র্যাকিং সিস্টেম। সকল অধিকার সংরক্ষিত।</p>
+        </div>
+    </div>
+</body>
+</html>

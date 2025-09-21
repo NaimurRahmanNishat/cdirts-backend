@@ -1,0 +1,17 @@
+user model
+    name
+    email
+    password
+    phone
+    nid
+    profile image
+    role
+
+
+issu model
+    tittle
+    description
+    image
+    location
+    status
+    phone number
