@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createIssue, editIssue, getAllIssues, getIssueById } from "../controller/issu.controller";
+import { createIssue, editIssue, getAllIssues, getIssueById } from "../controller/issue.controller";
 import { isAuthenticated } from "../middleware/auth";
 
 const router = Router();

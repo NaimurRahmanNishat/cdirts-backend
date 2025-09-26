@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { catchAsync } from "../middleware/catchAsync";
 import { Review } from "../models/review.model";
-import { Issue } from "../models/issu.model";
+import { Issue } from "../models/issue.model";
 
 // Review create
 export const createReview = catchAsync(async (req: Request, res: Response) => {

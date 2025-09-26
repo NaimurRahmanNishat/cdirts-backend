@@ -25,7 +25,7 @@ app.use(globalErrorHandler);
 import userRoutes from './routes/user.routes';
 app.use("/api/auth", userRoutes);
 
-import issuRoutes from './routes/issu.routes';
+import issuRoutes from './routes/issue.routes';
 app.use("/api/issue", issuRoutes);
 
 import reviewRoutes from './routes/review.routes';

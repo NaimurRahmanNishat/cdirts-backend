@@ -1,9 +1,8 @@
 import { catchAsync } from "../middleware/catchAsync";
-import { Issue } from "../models/issu.model";
+import { Issue } from "../models/issue.model";
 import { Request, Response } from "express";
-import { Review } from "../models/review.model";
 
-
+// create issue
 export const createIssue = catchAsync(async (req: Request, res: Response) => {
   const { title, category, description, image, images, location, division, author } = req.body;
 

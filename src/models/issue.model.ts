@@ -21,6 +21,7 @@ export enum IssueCategory {
   ELECTRICITY = "electricity",
   WATER = "water",
   GAS = "gas",
+  BRACKING_ROAD = "bracking-road",
   OTHER = "other",
 }
 
