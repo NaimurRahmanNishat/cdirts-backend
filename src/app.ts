@@ -25,6 +25,12 @@ app.use(globalErrorHandler);
 import userRoutes from './routes/user.routes';
 app.use("/api/auth", userRoutes);
 
+import issuRoutes from './routes/issu.routes';
+app.use("/api/issue", issuRoutes);
+
+import reviewRoutes from './routes/review.routes';
+app.use("/api/review", reviewRoutes);
+
 
 
 app.get("/", (_req: Request, res:Response) => {

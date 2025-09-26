@@ -33,30 +33,62 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Issue = void 0;
+exports.Issue = exports.IssueCategory = exports.IssueStatus = exports.BangladeshDivision = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
+var BangladeshDivision;
+(function (BangladeshDivision) {
+    BangladeshDivision["DHAKA"] = "Dhaka";
+    BangladeshDivision["CHATTOGRAM"] = "Chattogram";
+    BangladeshDivision["RAJSHAHI"] = "Rajshahi";
+    BangladeshDivision["KHULNA"] = "Khulna";
+    BangladeshDivision["BARISHAL"] = "Barishal";
+    BangladeshDivision["SYLHET"] = "Sylhet";
+    BangladeshDivision["RANGPUR"] = "Rangpur";
+    BangladeshDivision["MYMENSINGH"] = "Mymensingh";
+})(BangladeshDivision || (exports.BangladeshDivision = BangladeshDivision = {}));
+var IssueStatus;
+(function (IssueStatus) {
+    IssueStatus["PENDING"] = "pending";
+    IssueStatus["IN_PROGRESS"] = "in-progress";
+    IssueStatus["RESOLVED"] = "resolved";
+})(IssueStatus || (exports.IssueStatus = IssueStatus = {}));
+var IssueCategory;
+(function (IssueCategory) {
+    IssueCategory["ELECTRICITY"] = "electricity";
+    IssueCategory["WATER"] = "water";
+    IssueCategory["GAS"] = "gas";
+    IssueCategory["OTHER"] = "other";
+})(IssueCategory || (exports.IssueCategory = IssueCategory = {}));
 const issueSchema = new mongoose_1.Schema({
     title: { type: String, required: true, trim: true },
-    description: { type: String, required: true, trim: true },
-    image: {
-        public_id: { type: String },
-        url: { type: String },
+    category: {
+        type: String,
+        enum: Object.values(IssueCategory),
+        required: true,
+        trim: true,
     },
-    location: { type: String },
+    description: { type: String, required: true, trim: true },
+    images: [
+        {
+            public_id: { type: String, required: true },
+            url: { type: String, required: true },
+        },
+    ],
+    location: { type: String, required: true, trim: true },
+    division: {
+        type: String,
+        enum: Object.values(BangladeshDivision),
+        required: true,
+    },
     status: {
         type: String,
-        enum: ["pending", "in-progress", "resolved"],
-        default: "pending",
+        enum: Object.values(IssueStatus),
+        default: IssueStatus.PENDING,
     },
-    createdBy: {
-        type: mongoose_1.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
-    },
-    phone: { type: String, required: true },
-    otpCode: { type: String },
-    otpExpire: { type: Date },
-    verified: { type: Boolean, default: false },
+    author: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
+    reviews: [{ type: mongoose_1.Schema.Types.ObjectId, ref: "Review" }],
 }, { timestamps: true });
+// search index
+issueSchema.index({ title: "text", description: "text", location: "text" });
 exports.Issue = mongoose_1.default.model("Issue", issueSchema);
 //# sourceMappingURL=issu.model.js.map

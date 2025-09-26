@@ -15,6 +15,21 @@ import { AuthRequest } from "../middleware/auth";
 // Register user
 export const registerUser = catchAsync(async (req: Request, res:Response) => {
     const {name, email, password, phone, nid} = req.body;
+
+    if(!name || name.length < 3 || name.length > 20) {
+      throw new AppError(400, "Name must be between 3 and 20 characters!");
+    }
+    if(!email) throw new AppError(400, "Email is required!");
+    if(!password || password.length < 6){
+      throw new AppError(400, "Password must be at least 6 characters!");
+    }
+    if(!phone || phone.length !== 11){
+      throw new AppError(400, "Phone number must be 11 digits!");
+    }
+    if(!nid || nid.length !== 10){
+      throw new AppError(400, "NID must be 10 digits!");
+    }
+
     const existingUser = await User.findOne({email});
     if(existingUser) throw new AppError(400, "User already exists!");
 
@@ -24,11 +39,11 @@ export const registerUser = catchAsync(async (req: Request, res:Response) => {
     const token = jwt.sign( user, process.env.JWT_ACCESS_SECRET!, { expiresIn: "10m" });
 
     try {
-        // Send activation code to user's email
-        await sendActivationEmail(email, activationCode);
+      // Send activation code to user's email
+      await sendActivationEmail(email, activationCode);
     } catch (error) {
-        console.error('Failed to send activation email:', error);
-        throw new AppError(500, "Failed to send activation email. Please try again later.");
+      console.error('Failed to send activation email:', error);
+      throw new AppError(500, "Failed to send activation email. Please try again later.");
     }
 
     res.status(200).json({
@@ -61,13 +76,17 @@ export const activateUser = catchAsync(async (req: Request, res:Response) => {
     }
     const newUser = new User({ name, email, password, phone, nid, isVerified: true, role: "user" });
     await newUser.save();
-    res.status(200).json({ success: true, newUser, message: "User registered successfully!" });
+    res.status(200).json({ success: true, newUser, message: "User registation successfully!" });
 });
 
 // Login user
 export const loginUser = catchAsync(async (req: Request, res:Response) => {
     const { email, password } = req.body;
-    if(!email || !password) throw new AppError(400, "Email and password are required!");
+    
+    if(!email) throw new AppError(400, "Email is required!");
+    if(!password || password.length < 6){
+      throw new AppError(400, "Password must be at least 6 characters!");
+    }
     const user = await User.findOne({ email });
     if(!user) throw new AppError(401, "User not found!");
     if(!password || !user.password) throw new AppError(401, "Invalid credentials!");

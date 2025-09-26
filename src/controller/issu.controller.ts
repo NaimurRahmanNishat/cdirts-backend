@@ -1,56 +1,146 @@
-// import { Issue } from "../models/issu.model";
-// import { Request, Response } from "express";
+import { catchAsync } from "../middleware/catchAsync";
+import { Issue } from "../models/issu.model";
+import { Request, Response } from "express";
+import { Review } from "../models/review.model";
 
-// // OTP Generator
-// function generateOTP() {
-//   return Math.floor(100000 + Math.random() * 900000).toString();
-// }
 
-// export const createIssue = async (req:Request, res:Response) => {
-//   try {
-//     const { title, description, phone, location } = req.body;
-//     const otp = generateOTP();
+export const createIssue = catchAsync(async (req: Request, res: Response) => {
+  const { title, category, description, image, images, location, division, author } = req.body;
 
-//     const newIssue = await Issue.create({
-//       title,
-//       description,
-//       phone,
-//       location,
-//       createdBy: req.user._id, // auth middleware থেকে আসবে
-//       otpCode: otp,
-//       otpExpire: new Date(Date.now() + 5 * 60 * 1000), // 5 min expire
-//     });
+  if (!title || !category || !description || !location || !division || !author) {
+    throw new Error("All fields are required");
+  }
 
-//     // এখানে SMS Gateway দিয়ে OTP পাঠাবে
-//     // sendSms(phone, `Your OTP is ${otp}`);
+  let issueImages = images;
+  if (image && !images) {
+    issueImages = [image];
+  }
 
-//     res.status(200).json({ 
-//       message: "OTP sent to phone. Please verify to complete posting.", 
-//       issueId: newIssue._id 
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
+  if (!issueImages || !Array.isArray(issueImages)) {
+    throw new Error("Images field is required and must be an array");
+  }
 
-// export const verifyIssue = async (req, res) => {
-//   try {
-//     const { issueId, otp } = req.body;
+  const newIssue = await Issue.create({
+    title,
+    category,
+    description,
+    images: issueImages,
+    location,
+    division,
+    author,
+  });
 
-//     const issue = await Issue.findById(issueId);
-//     if (!issue) return res.status(404).json({ message: "Issue not found" });
+  res.status(201).json({
+    success: true,
+    message: "Issue created successfully!",
+    issue: newIssue,
+  });
+});
 
-//     if (issue.otpCode !== otp || issue.otpExpire < new Date()) {
-//       return res.status(400).json({ message: "Invalid or expired OTP" });
-//     }
+// all issues
+export const getAllIssues = catchAsync(async (req: Request, res: Response) => {
+  const { page = 1, limit = 10, sort = "-createdAt", status, division, category, search } = req.query;
 
-//     issue.verified = true;
-//     issue.otpCode = undefined;
-//     issue.otpExpire = undefined;
-//     await issue.save();
+  // 🔎 Build query object
+  const query: any = {};
 
-//     res.status(200).json({ message: "Issue verified successfully", issue });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
+  if (status) query.status = status; 
+  if (division) query.division = division;
+  if (category) query.category = category; 
+
+  if (search) {
+    query.$text = { $search: search as string }; 
+  }
+
+  // 📊 Pagination
+  const pageNumber = parseInt(page as string, 10);
+  const limitNumber = parseInt(limit as string, 10);
+
+  // 🛠️ Fetch issues with filter/sort/pagination
+  const issues = await Issue.find(query)
+    .populate({
+      path: "reviews",
+      populate: {
+        path: "author replies.author",
+        select: "name email",
+      },
+    })
+    .populate("author", "name email")
+    .sort(sort as string)
+    .skip((pageNumber - 1) * limitNumber)
+    .limit(limitNumber)
+    .lean();
+
+  // 📌 Total count for pagination
+  const total = await Issue.countDocuments(query);
+
+  res.status(200).json({
+    success: true,
+    message: "All issues fetched successfully",
+    total,
+    pagination: {
+      page: pageNumber,
+      limit: limitNumber,
+      pages: Math.ceil(total / limitNumber),
+    },
+    issues,
+  });
+});
+
+// single issue
+export const getIssueById = catchAsync(async (req: Request, res: Response) => {
+  const { issueId } = req.params;
+  const issue = await Issue.findById(issueId).populate({
+    path: "reviews",
+    populate: {
+      path: "author replies.author",
+      select: "name email",
+    },
+  });
+  if (!issue) {
+    return res.status(404).json({ success: false, message: "Issue not found" });
+  }
+  res.status(200).json({
+    success: true,
+    message: "Issue fetched successfully",
+    issue,
+  });
+});
+
+// edit issue
+export const editIssue = catchAsync(async (req: Request, res: Response) => {
+  const { issueId } = req.params;
+  const { title, category, description, image, images, location, division } = req.body;
+
+  if (!title || !category || !description || !location || !division) {
+    throw new Error("All fields are required");
+  }
+
+  let issueImages = images;
+  if (image && !images) {
+    issueImages = [image];
+  }
+
+  if (!issueImages || !Array.isArray(issueImages)) {
+    throw new Error("Images field is required and must be an array"); 
+  }
+
+  const updatedIssue = await Issue.findByIdAndUpdate(
+    issueId,
+    {
+      title,
+      category,
+      description,
+      images: issueImages,
+      location,
+      division,
+    },
+    { new: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Issue updated successfully",
+    issue: updatedIssue,
+  });
+});

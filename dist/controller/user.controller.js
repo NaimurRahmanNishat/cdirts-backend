@@ -17,6 +17,20 @@ const token_1 = require("../utils/token");
 // Register user
 exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { name, email, password, phone, nid } = req.body;
+    if (!name || name.length < 3 || name.length > 20) {
+        throw new AppError_1.AppError(400, "Name must be between 3 and 20 characters!");
+    }
+    if (!email)
+        throw new AppError_1.AppError(400, "Email is required!");
+    if (!password || password.length < 6) {
+        throw new AppError_1.AppError(400, "Password must be at least 6 characters!");
+    }
+    if (!phone || phone.length !== 11) {
+        throw new AppError_1.AppError(400, "Phone number must be 11 digits!");
+    }
+    if (!nid || nid.length !== 10) {
+        throw new AppError_1.AppError(400, "NID must be 10 digits!");
+    }
     const existingUser = await user_model_1.User.findOne({ email });
     if (existingUser)
         throw new AppError_1.AppError(400, "User already exists!");
@@ -61,13 +75,16 @@ exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     }
     const newUser = new user_model_1.User({ name, email, password, phone, nid, isVerified: true, role: "user" });
     await newUser.save();
-    res.status(200).json({ success: true, newUser, message: "User registered successfully!" });
+    res.status(200).json({ success: true, newUser, message: "User registation successfully!" });
 });
 // Login user
 exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email, password } = req.body;
-    if (!email || !password)
-        throw new AppError_1.AppError(400, "Email and password are required!");
+    if (!email)
+        throw new AppError_1.AppError(400, "Email is required!");
+    if (!password || password.length < 6) {
+        throw new AppError_1.AppError(400, "Password must be at least 6 characters!");
+    }
     const user = await user_model_1.User.findOne({ email });
     if (!user)
         throw new AppError_1.AppError(401, "User not found!");

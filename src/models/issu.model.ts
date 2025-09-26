@@ -1,43 +1,80 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export interface IIssue extends Document {
-  title: string;
-  description: string;
-  image?: {
-    public_id: string;
-    url: string;
-  };
-  location?: string;
-  status: "pending" | "in-progress" | "resolved";
-  createdBy: mongoose.Types.ObjectId; // user reference
-  phone: string; // পোস্ট করার সময় দেওয়া নাম্বার
-  otpCode?: string; // 6 digit OTP
-  otpExpire?: Date; // OTP expiration time
-  verified: boolean; // OTP ভেরিফাই হয়েছে কি না
+export enum BangladeshDivision {
+  DHAKA = "Dhaka",
+  CHATTOGRAM = "Chattogram",
+  RAJSHAHI = "Rajshahi",
+  KHULNA = "Khulna",
+  BARISHAL = "Barishal",
+  SYLHET = "Sylhet",
+  RANGPUR = "Rangpur",
+  MYMENSINGH = "Mymensingh",
 }
 
-const issueSchema = new Schema<IIssue>({
-  title: { type: String, required: true, trim: true },
-  description: { type: String, required: true, trim: true },
-  image: {
-    public_id: { type: String },
-    url: { type: String },
+export enum IssueStatus {
+  PENDING = "pending",
+  IN_PROGRESS = "in-progress",
+  RESOLVED = "resolved",
+}
+
+export enum IssueCategory {
+  ELECTRICITY = "electricity",
+  WATER = "water",
+  GAS = "gas",
+  OTHER = "other",
+}
+
+export interface IIssue extends Document {
+  title: string;
+  category: IssueCategory;
+  description: string;
+  images: {
+    public_id: string;
+    url: string;
+  }[]; // Array of image objects
+  location: string;
+  division: BangladeshDivision;
+  status: IssueStatus;
+  author: mongoose.Types.ObjectId;
+  reviews: mongoose.Types.ObjectId[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+const issueSchema = new Schema<IIssue>(
+  {
+    title: { type: String, required: true, trim: true },
+    category: {
+      type: String,
+      enum: Object.values(IssueCategory),
+      required: true,
+      trim: true,
+    },
+    description: { type: String, required: true, trim: true },
+    images: [
+      {
+        public_id: { type: String, required: true },
+        url: { type: String, required: true },
+      },
+    ],
+    location: { type: String, required: true, trim: true },
+    division: {
+      type: String,
+      enum: Object.values(BangladeshDivision),
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: Object.values(IssueStatus),
+      default: IssueStatus.PENDING,
+    },
+    author: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
   },
-  location: { type: String },
-  status: {
-    type: String,
-    enum: ["pending", "in-progress", "resolved"],
-    default: "pending",
-  },
-  createdBy: { 
-    type: Schema.Types.ObjectId, 
-    ref: "User", 
-    required: true 
-  },
-  phone: { type: String, required: true },
-  otpCode: { type: String },
-  otpExpire: { type: Date },
-  verified: { type: Boolean, default: false },
-}, { timestamps: true });
+  { timestamps: true }
+);
+
+// search index
+issueSchema.index({ title: "text", description: "text", location: "text" });
 
 export const Issue = mongoose.model<IIssue>("Issue", issueSchema);
