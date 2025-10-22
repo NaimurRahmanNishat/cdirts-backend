@@ -18,6 +18,7 @@ export declare enum IssueCategory {
     ELECTRICITY = "electricity",
     WATER = "water",
     GAS = "gas",
+    BRACKING_ROAD = "bracking-road",
     OTHER = "other"
 }
 export interface IIssue extends Document {
@@ -41,4 +42,4 @@ export declare const Issue: mongoose.Model<IIssue, {}, {}, {}, mongoose.Document
 }> & {
     __v: number;
 }, any>;
-//# sourceMappingURL=issu.model.d.ts.map
+//# sourceMappingURL=issue.model.d.ts.map

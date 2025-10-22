@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendActivationEmail = void 0;
+exports.sendResetPasswordEmail = exports.sendActivationEmail = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 const nodemailer_1 = __importDefault(require("nodemailer"));
@@ -17,6 +17,7 @@ const transporter = nodemailer_1.default.createTransport({
         pass: process.env.SMTP_PASS,
     },
 });
+// ✅ Send Account Activation Email
 const sendActivationEmail = async (email, activationCode) => {
     const templatePath = path_1.default.join(__dirname, "../templates/activation.ejs");
     const html = await ejs_1.default.renderFile(templatePath, { activationCode });
@@ -28,4 +29,16 @@ const sendActivationEmail = async (email, activationCode) => {
     });
 };
 exports.sendActivationEmail = sendActivationEmail;
+// ✅ Send Password Reset Email
+const sendResetPasswordEmail = async (email, resetLink) => {
+    const templatePath = path_1.default.join(__dirname, "../templates/resetPassword.ejs");
+    const html = await ejs_1.default.renderFile(templatePath, { resetLink });
+    await transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: email,
+        subject: "Reset Your Password",
+        html,
+    });
+};
+exports.sendResetPasswordEmail = sendResetPasswordEmail;
 //# sourceMappingURL=email.js.map

@@ -2,7 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.editIssue = exports.getIssueById = exports.getAllIssues = exports.createIssue = void 0;
 const catchAsync_1 = require("../middleware/catchAsync");
-const issu_model_1 = require("../models/issu.model");
+const issue_model_1 = require("../models/issue.model");
+// create issue
 exports.createIssue = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { title, category, description, image, images, location, division, author } = req.body;
     if (!title || !category || !description || !location || !division || !author) {
@@ -15,7 +16,7 @@ exports.createIssue = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (!issueImages || !Array.isArray(issueImages)) {
         throw new Error("Images field is required and must be an array");
     }
-    const newIssue = await issu_model_1.Issue.create({
+    const newIssue = await issue_model_1.Issue.create({
         title,
         category,
         description,
@@ -48,7 +49,7 @@ exports.getAllIssues = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
     // 🛠️ Fetch issues with filter/sort/pagination
-    const issues = await issu_model_1.Issue.find(query)
+    const issues = await issue_model_1.Issue.find(query)
         .populate({
         path: "reviews",
         populate: {
@@ -62,7 +63,7 @@ exports.getAllIssues = (0, catchAsync_1.catchAsync)(async (req, res) => {
         .limit(limitNumber)
         .lean();
     // 📌 Total count for pagination
-    const total = await issu_model_1.Issue.countDocuments(query);
+    const total = await issue_model_1.Issue.countDocuments(query);
     res.status(200).json({
         success: true,
         message: "All issues fetched successfully",
@@ -78,7 +79,7 @@ exports.getAllIssues = (0, catchAsync_1.catchAsync)(async (req, res) => {
 // single issue
 exports.getIssueById = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { issueId } = req.params;
-    const issue = await issu_model_1.Issue.findById(issueId).populate({
+    const issue = await issue_model_1.Issue.findById(issueId).populate({
         path: "reviews",
         populate: {
             path: "author replies.author",
@@ -108,7 +109,7 @@ exports.editIssue = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (!issueImages || !Array.isArray(issueImages)) {
         throw new Error("Images field is required and must be an array");
     }
-    const updatedIssue = await issu_model_1.Issue.findByIdAndUpdate(issueId, {
+    const updatedIssue = await issue_model_1.Issue.findByIdAndUpdate(issueId, {
         title,
         category,
         description,
@@ -122,4 +123,4 @@ exports.editIssue = (0, catchAsync_1.catchAsync)(async (req, res) => {
         issue: updatedIssue,
     });
 });
-//# sourceMappingURL=issu.controller.js.map
+//# sourceMappingURL=issue.controller.js.map

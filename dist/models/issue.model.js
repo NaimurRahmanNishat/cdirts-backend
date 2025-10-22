@@ -57,6 +57,7 @@ var IssueCategory;
     IssueCategory["ELECTRICITY"] = "electricity";
     IssueCategory["WATER"] = "water";
     IssueCategory["GAS"] = "gas";
+    IssueCategory["BRACKING_ROAD"] = "bracking-road";
     IssueCategory["OTHER"] = "other";
 })(IssueCategory || (exports.IssueCategory = IssueCategory = {}));
 const issueSchema = new mongoose_1.Schema({
@@ -91,4 +92,4 @@ const issueSchema = new mongoose_1.Schema({
 // search index
 issueSchema.index({ title: "text", description: "text", location: "text" });
 exports.Issue = mongoose_1.default.model("Issue", issueSchema);
-//# sourceMappingURL=issu.model.js.map
+//# sourceMappingURL=issue.model.js.map

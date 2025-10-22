@@ -9,14 +9,19 @@ const AppError_1 = require("../utils/AppError");
 const catchAsync_1 = require("../middleware/catchAsync");
 const crypto_1 = __importDefault(require("crypto"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const email_1 = require("../utils/email");
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const email_1 = require("../utils/email");
 const redis_1 = require("../utils/redis");
 const cookie_1 = require("../utils/cookie");
 const token_1 = require("../utils/token");
-// Register user
+const authState_1 = require("../middleware/authState");
+// Regex (consistent with schema)
+const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
+const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
+// ✅ Register user (send activation email)
 exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { name, email, password, phone, nid } = req.body;
+    // Validation
     if (!name || name.length < 3 || name.length > 20) {
         throw new AppError_1.AppError(400, "Name must be between 3 and 20 characters!");
     }
@@ -25,33 +30,33 @@ exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (!password || password.length < 6) {
         throw new AppError_1.AppError(400, "Password must be at least 6 characters!");
     }
-    if (!phone || phone.length !== 11) {
-        throw new AppError_1.AppError(400, "Phone number must be 11 digits!");
+    if (!phone || !phoneRegex.test(phone)) {
+        throw new AppError_1.AppError(400, "Please provide a valid Bangladesh phone number!");
     }
-    if (!nid || nid.length !== 10) {
-        throw new AppError_1.AppError(400, "NID must be 10 digits!");
+    if (!nid || !nidRegex.test(nid)) {
+        throw new AppError_1.AppError(400, "Please provide a valid Bangladesh NID number!");
     }
     const existingUser = await user_model_1.User.findOne({ email });
     if (existingUser)
         throw new AppError_1.AppError(400, "User already exists!");
     const activationCode = crypto_1.default.randomBytes(3).toString("hex");
-    const user = { name, email, password, phone, nid, activationCode };
-    const token = jsonwebtoken_1.default.sign(user, process.env.JWT_ACCESS_SECRET, { expiresIn: "10m" });
+    const hashedPassword = await bcrypt_1.default.hash(password, 10);
+    const activationData = { name, email, phone, nid, activationCode };
+    // Save hashed password temporarily in Redis for 10 minutes
+    await redis_1.redis.set(email, hashedPassword, "EX", 600);
+    const token = jsonwebtoken_1.default.sign(activationData, process.env.JWT_ACCESS_SECRET, {
+        expiresIn: "10m",
+    });
     try {
-        // Send activation code to user's email
         await (0, email_1.sendActivationEmail)(email, activationCode);
     }
     catch (error) {
-        console.error('Failed to send activation email:', error);
+        console.error("Failed to send activation email:", error);
         throw new AppError_1.AppError(500, "Failed to send activation email. Please try again later.");
     }
-    res.status(200).json({
-        success: true,
-        message: "Check your email to activate your account.",
-        token,
-    });
+    res.status(200).json({ success: true, message: "Check your email to activate your account.", token });
 });
-// Activate user
+// ✅ Activate user
 exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { activationCode, token } = req.body;
     if (!token)
@@ -65,7 +70,7 @@ exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     catch {
         throw new AppError_1.AppError(401, "Token expired or invalid");
     }
-    const { name, email, password, phone, nid, activationCode: originalCode } = decoded;
+    const { name, email, phone, nid, activationCode: originalCode } = decoded;
     if (activationCode !== originalCode) {
         throw new AppError_1.AppError(400, "Invalid activation code");
     }
@@ -73,11 +78,23 @@ exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (userExists) {
         throw new AppError_1.AppError(400, "User already exists!");
     }
-    const newUser = new user_model_1.User({ name, email, password, phone, nid, isVerified: true, role: "user" });
+    const hashedPassword = await redis_1.redis.get(email);
+    if (!hashedPassword)
+        throw new AppError_1.AppError(400, "Activation time expired. Please register again.");
+    const newUser = new user_model_1.User({
+        name,
+        email,
+        password: hashedPassword,
+        phone,
+        nid,
+        isVerified: true,
+        role: "user",
+    });
     await newUser.save();
-    res.status(200).json({ success: true, newUser, message: "User registation successfully!" });
+    await redis_1.redis.del(email);
+    res.status(200).json({ success: true, newUser, message: "User registration successful!" });
 });
-// Login user
+// ✅ Login user
 exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email, password } = req.body;
     if (!email)
@@ -88,20 +105,29 @@ exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const user = await user_model_1.User.findOne({ email });
     if (!user)
         throw new AppError_1.AppError(401, "User not found!");
-    if (!password || !user.password)
+    if (!user.password)
         throw new AppError_1.AppError(401, "Invalid credentials!");
     const isMatch = await bcrypt_1.default.compare(password, user.password);
     if (!isMatch)
         throw new AppError_1.AppError(401, "Invalid credentials!");
-    // access token & refresh token generate
     const accessToken = (0, token_1.generateAccessToken)({ id: user._id, role: user.role });
     const refreshToken = (0, token_1.generateRefreshToken)({ id: user._id });
     (0, cookie_1.setAuthCookies)(res, accessToken, refreshToken);
-    const userWithoutPassword = { ...user.toObject(), password: undefined };
-    await redis_1.redis.set(user._id.toString(), JSON.stringify(userWithoutPassword), "EX", 15 * 60);
-    res.status(200).json({ success: true, message: "Login successful" });
+    (0, cookie_1.setAccessTokenCookie)(res, accessToken);
+    const safeUser = {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isVerified,
+    };
+    await (0, authState_1.setUserState)(user._id.toString(), safeUser);
+    res.status(200).json({
+        success: true,
+        message: `${user.role} logged in successfully`,
+        data: safeUser,
+    });
 });
-// Refresh access token
+// ✅ Refresh access token
 exports.refreshAccessToken = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const token = req.cookies.refreshToken;
     if (!token)
@@ -128,33 +154,31 @@ exports.refreshAccessToken = (0, catchAsync_1.catchAsync)(async (req, res) => {
         throw new AppError_1.AppError(404, "User not found!");
     const accessToken = (0, token_1.generateAccessToken)({ id: user._id, role: user.role });
     // Update Redis cache with fresh user data
-    const plainUser = user.toObject ? user.toObject() : user;
-    const userWithoutPassword = { ...plainUser, password: undefined };
+    const userWithoutPassword = { ...user.toObject(), password: undefined };
     await redis_1.redis.set(user._id.toString(), JSON.stringify(userWithoutPassword), "EX", 15 * 60);
     (0, cookie_1.setAccessTokenCookie)(res, accessToken);
     res.status(200).json({ success: true, message: "Access token refreshed" });
 });
-// social auth (google, facebook, github)
+// ✅ Social auth
 exports.socialAuth = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email, name, avatar } = req.body;
-    const user = await user_model_1.User.findOne({ email });
+    let user = await user_model_1.User.findOne({ email });
     if (!user) {
-        const newUser = await user_model_1.User.create({ email, name, avatar });
-        const accessToken = (0, token_1.generateAccessToken)({ id: newUser._id, role: newUser.role });
-        const refreshToken = (0, token_1.generateRefreshToken)({ id: newUser._id });
-        (0, cookie_1.setAuthCookies)(res, accessToken, refreshToken);
-        res.status(200).json({ success: true, message: "User created successfully", user: newUser });
+        user = await user_model_1.User.create({ email, name, avatar, isVerified: true });
     }
-    else {
-        const accessToken = (0, token_1.generateAccessToken)({ id: user._id, role: user.role });
-        const refreshToken = (0, token_1.generateRefreshToken)({ id: user._id });
-        (0, cookie_1.setAuthCookies)(res, accessToken, refreshToken);
-        const userWithoutPassword = { ...user.toObject(), password: undefined };
-        await redis_1.redis.set(user._id.toString(), JSON.stringify(userWithoutPassword), "EX", 15 * 60);
-        res.status(200).json({ success: true, message: "User login successfull!", user });
-    }
+    const accessToken = (0, token_1.generateAccessToken)({ id: user._id, role: user.role });
+    const refreshToken = (0, token_1.generateRefreshToken)({ id: user._id });
+    await user_model_1.User.findByIdAndUpdate(user._id, { refreshToken });
+    (0, cookie_1.setAuthCookies)(res, accessToken, refreshToken);
+    const userWithoutPassword = { ...user.toObject(), password: undefined };
+    await redis_1.redis.set(`user:${user._id}`, JSON.stringify(userWithoutPassword), "EX", 15 * 60);
+    res.status(200).json({
+        success: true,
+        message: user.isNew ? "User created successfully" : "User login successful",
+        data: userWithoutPassword,
+    });
 });
-// forget password (OTP based)
+// ✅ Forget password (OTP based)
 exports.forgetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email } = req.body;
     if (!email)
@@ -183,7 +207,7 @@ exports.forgetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
         message: "Password reset OTP sent to your email",
     });
 });
-// reset password (OTP verify and set new password)
+// ✅ Reset password
 exports.resetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { otp, newPassword } = req.body;
     if (!otp || !newPassword) {
@@ -195,24 +219,30 @@ exports.resetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
     });
     if (!user)
         throw new AppError_1.AppError(400, "Invalid or expired OTP");
-    // Set new password and clear OTP fields
     user.password = newPassword;
     user.passwordResetToken = undefined;
     user.passwordResetExpire = undefined;
     await user.save();
     res.status(200).json({ success: true, message: "Password reset successful" });
 });
-// logout user
+// ✅ Logout user
 exports.logoutUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     await redis_1.redis.del(req.user._id);
     res.status(200).json({ success: true, message: "Logged out successfully" });
 });
-// update user profile
+// ✅ Update user profile
 exports.updateProfile = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { name, phone } = req.body;
+    if (phone && !phoneRegex.test(phone)) {
+        throw new AppError_1.AppError(400, "Please provide a valid Bangladesh phone number!");
+    }
     const user = await user_model_1.User.findByIdAndUpdate(req.user._id, { name, phone }, { new: true });
-    res.status(200).json({ success: true, message: "Profile updated successfully", user });
+    res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        user,
+    });
 });
 //# sourceMappingURL=user.controller.js.map

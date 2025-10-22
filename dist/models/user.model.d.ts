@@ -12,8 +12,8 @@ export interface IUser extends mongoose.Document {
         public_id: string;
         url: string;
     };
-    passwordResetToken: string;
-    passwordResetExpire: Date;
+    passwordResetToken?: string;
+    passwordResetExpire?: Date;
     refreshToken?: string;
     phone?: string;
     nid?: string;

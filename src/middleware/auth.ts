@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from "express";
-import { IUser } from "../models/user.model";
+import { IUser, User } from "../models/user.model";
 import { AppError } from "../utils/AppError";
 import { redis } from "../utils/redis";
 import jwt from "jsonwebtoken";
 import config from "../config";
+import { getUserState, setUserState } from "./authState";
 
 export interface AuthRequest extends Request {
-  user?: IUser;
+  user?: IUser | undefined;
 }
 
 // Authentication middleware
@@ -16,15 +17,19 @@ export const isAuthenticated = async (req: AuthRequest, res: Response, next: Nex
 
   try {
     const decoded = jwt.verify(token, config.jwt_access_secret!) as { id: string };
-    const userData = await redis.get(decoded.id);
-    if (!userData) return next(new AppError(404, "User not found"));
-    
-    const user = JSON.parse(userData) as IUser;
-    if (!user) return next(new AppError(404, "User not found"));
-
-    req.user = user;
+    let userData = await getUserState(decoded.id);
+    if (!userData) {
+      const dbUser = await User.findById(decoded.id).lean();
+      if (!dbUser) return next(new AppError(404, "User not found"));
+      const plain = { ...dbUser } as any;
+      if (plain.password) delete plain.password;
+      await setUserState(decoded.id, plain);
+      userData = plain as any;
+    }
+    req.user = userData as any;
     next();
-  } catch {
+  } catch(err) {
+    console.error("isAuthenticated error:", err);
     return next(new AppError(401, "Token expired or invalid"));
   }
 };

@@ -25,8 +25,8 @@ app.use(globalError_1.default);
 // Routes
 const user_routes_1 = __importDefault(require("./routes/user.routes"));
 app.use("/api/auth", user_routes_1.default);
-const issu_routes_1 = __importDefault(require("./routes/issu.routes"));
-app.use("/api/issue", issu_routes_1.default);
+const issue_routes_1 = __importDefault(require("./routes/issue.routes"));
+app.use("/api/issue", issue_routes_1.default);
 const review_routes_1 = __importDefault(require("./routes/review.routes"));
 app.use("/api/review", review_routes_1.default);
 app.get("/", (_req, res) => {

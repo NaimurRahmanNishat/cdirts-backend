@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.addReplyToReview = exports.createReview = void 0;
 const catchAsync_1 = require("../middleware/catchAsync");
 const review_model_1 = require("../models/review.model");
-const issu_model_1 = require("../models/issu.model");
+const issue_model_1 = require("../models/issue.model");
 // Review create
 exports.createReview = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { issueId } = req.params;
@@ -18,7 +18,7 @@ exports.createReview = (0, catchAsync_1.catchAsync)(async (req, res) => {
         comment,
     });
     // Issue এর সাথে Review লিংক
-    await issu_model_1.Issue.findByIdAndUpdate(issueId, { $push: { reviews: newReview._id } });
+    await issue_model_1.Issue.findByIdAndUpdate(issueId, { $push: { reviews: newReview._id } });
     res.status(201).json({
         success: true,
         message: "Review added successfully!",

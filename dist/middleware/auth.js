@@ -4,10 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authorizeRole = exports.isAuthenticated = void 0;
+const user_model_1 = require("../models/user.model");
 const AppError_1 = require("../utils/AppError");
-const redis_1 = require("../utils/redis");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = __importDefault(require("../config"));
+const authState_1 = require("./authState");
 // Authentication middleware
 const isAuthenticated = async (req, res, next) => {
     const token = req.cookies.accessToken;
@@ -15,16 +16,22 @@ const isAuthenticated = async (req, res, next) => {
         return next(new AppError_1.AppError(401, "Access token missing"));
     try {
         const decoded = jsonwebtoken_1.default.verify(token, config_1.default.jwt_access_secret);
-        const userData = await redis_1.redis.get(decoded.id);
-        if (!userData)
-            return next(new AppError_1.AppError(404, "User not found"));
-        const user = JSON.parse(userData);
-        if (!user)
-            return next(new AppError_1.AppError(404, "User not found"));
-        req.user = user;
+        let userData = await (0, authState_1.getUserState)(decoded.id);
+        if (!userData) {
+            const dbUser = await user_model_1.User.findById(decoded.id).lean();
+            if (!dbUser)
+                return next(new AppError_1.AppError(404, "User not found"));
+            const plain = { ...dbUser };
+            if (plain.password)
+                delete plain.password;
+            await (0, authState_1.setUserState)(decoded.id, plain);
+            userData = plain;
+        }
+        req.user = userData;
         next();
     }
-    catch {
+    catch (err) {
+        console.error("isAuthenticated error:", err);
         return next(new AppError_1.AppError(401, "Token expired or invalid"));
     }
 };

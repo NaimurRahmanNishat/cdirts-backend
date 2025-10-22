@@ -14,6 +14,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// ✅ Send Account Activation Email
 export const sendActivationEmail = async (email: string, activationCode: string) => {
   const templatePath = path.join(__dirname, "../templates/activation.ejs");
 
@@ -23,6 +24,20 @@ export const sendActivationEmail = async (email: string, activationCode: string)
     from: process.env.SMTP_FROM,
     to: email,
     subject: "Activate Your Account",
+    html,
+  });
+};
+
+// ✅ Send Password Reset Email
+export const sendResetPasswordEmail = async (email: string, resetLink: string) => {
+  const templatePath = path.join(__dirname, "../templates/resetPassword.ejs");
+
+  const html = await ejs.renderFile(templatePath, { resetLink });
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to: email,
+    subject: "Reset Your Password",
     html,
   });
 };

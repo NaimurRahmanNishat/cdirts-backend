@@ -4,108 +4,147 @@ import { AppError } from "../utils/AppError";
 import { catchAsync } from "../middleware/catchAsync";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import { sendActivationEmail } from "../utils/email";
 import bcrypt from "bcrypt";
+import { sendActivationEmail, sendResetPasswordEmail } from "../utils/email";
 import { redis } from "../utils/redis";
 import { setAccessTokenCookie, setAuthCookies } from "../utils/cookie";
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/token";
+import {generateAccessToken,generateRefreshToken,verifyRefreshToken} from "../utils/token";
 import { AuthRequest } from "../middleware/auth";
+import { getUserState, setUserState } from "../middleware/authState";
+import config from "../config";
 
+// Regex (consistent with schema)
+const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
+const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
 
-// Register user
-export const registerUser = catchAsync(async (req: Request, res:Response) => {
-    const {name, email, password, phone, nid} = req.body;
+// ✅ Register user (send activation email)
+export const registerUser = catchAsync(async (req: Request, res: Response) => {
+  const { name, email, password, phone, nid } = req.body;
 
-    if(!name || name.length < 3 || name.length > 20) {
-      throw new AppError(400, "Name must be between 3 and 20 characters!");
-    }
-    if(!email) throw new AppError(400, "Email is required!");
-    if(!password || password.length < 6){
-      throw new AppError(400, "Password must be at least 6 characters!");
-    }
-    if(!phone || phone.length !== 11){
-      throw new AppError(400, "Phone number must be 11 digits!");
-    }
-    if(!nid || nid.length !== 10){
-      throw new AppError(400, "NID must be 10 digits!");
-    }
+  // Validation
+  if (!name || name.length < 3 || name.length > 20) {
+    throw new AppError(400, "Name must be between 3 and 20 characters!");
+  }
+  if (!email) throw new AppError(400, "Email is required!");
+  if (!password || password.length < 6) {
+    throw new AppError(400, "Password must be at least 6 characters!");
+  }
+  if (!phone || !phoneRegex.test(phone)) {
+    throw new AppError(400, "Please provide a valid Bangladesh phone number!");
+  }
+  if (!nid || !nidRegex.test(nid)) {
+    throw new AppError(400, "Please provide a valid Bangladesh NID number!");
+  }
 
-    const existingUser = await User.findOne({email});
-    if(existingUser) throw new AppError(400, "User already exists!");
+  const existingUser = await User.findOne({ email });
+  if (existingUser) throw new AppError(400, "User already exists!");
 
-    const activationCode = crypto.randomBytes(3).toString("hex");
-    const user = { name, email, password, phone, nid, activationCode }
+  const activationCode = crypto.randomBytes(3).toString("hex");
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-    const token = jwt.sign( user, process.env.JWT_ACCESS_SECRET!, { expiresIn: "10m" });
+  const activationData = { name, email, phone, nid, activationCode };
 
-    try {
-      // Send activation code to user's email
-      await sendActivationEmail(email, activationCode);
-    } catch (error) {
-      console.error('Failed to send activation email:', error);
-      throw new AppError(500, "Failed to send activation email. Please try again later.");
-    }
+  // Save hashed password temporarily in Redis for 10 minutes
+  await redis.set(email, hashedPassword, "EX", 600);
 
-    res.status(200).json({
+  const token = jwt.sign(activationData, process.env.JWT_ACCESS_SECRET!, {
+    expiresIn: "10m",
+  });
+
+  try {
+    await sendActivationEmail(email, activationCode);
+  } catch (error) {
+    console.error("Failed to send activation email:", error);
+    throw new AppError(
+      500,
+      "Failed to send activation email. Please try again later."
+    );
+  }
+
+  res.status(200).json({success: true,message: "Check your email to activate your account.",token});
+});
+
+// ✅ Activate user
+export const activateUser = catchAsync(async (req: Request, res: Response) => {
+  const { activationCode, token } = req.body;
+  if (!token) throw new AppError(400, "Token is required!");
+  if (!activationCode) throw new AppError(400, "Activation code is required!");
+
+  let decoded: any;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!);
+  } catch {
+    throw new AppError(401, "Token expired or invalid");
+  }
+
+  const { name, email, phone, nid, activationCode: originalCode } = decoded;
+
+  if (activationCode !== originalCode) {
+    throw new AppError(400, "Invalid activation code");
+  }
+
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    throw new AppError(400, "User already exists!");
+  }
+
+  const hashedPassword = await redis.get(email);
+  if (!hashedPassword)
+    throw new AppError(400, "Activation time expired. Please register again.");
+
+  const newUser = new User({
+    name,
+    email,
+    password: hashedPassword,
+    phone,
+    nid,
+    isVerified: true,
+    role: "user",
+  });
+  await newUser.save();
+
+  await redis.del(email);
+
+  res.status(200).json({ success: true, newUser, message: "User registration successful!" });
+});
+
+// ✅ Login user
+export const loginUser = catchAsync(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email) throw new AppError(400, "Email is required!");
+  if (!password || password.length < 6) {
+    throw new AppError(400, "Password must be at least 6 characters!");
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) throw new AppError(401, "User not found!");
+  if (!user.password) throw new AppError(401, "Invalid credentials!");
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) throw new AppError(401, "Invalid credentials!");
+
+  const accessToken = generateAccessToken({ id: user._id, role: user.role });
+  const refreshToken = generateRefreshToken({ id: user._id });
+
+  setAuthCookies(res, accessToken, refreshToken);
+  setAccessTokenCookie(res, accessToken);
+
+    const safeUser = {
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isActive: user.isVerified, 
+  };
+  await setUserState(user._id.toString(), safeUser);
+  res.status(200).json({
     success: true,
-    message: "Check your email to activate your account.",
-    token,
+    message: `${user.role} logged in successfully`,
+    data: safeUser,
   });
 });
 
-// Activate user
-export const activateUser = catchAsync(async (req: Request, res:Response) => {
-    const { activationCode, token } = req.body;
-    if(!token) throw new AppError(400, "Token is required!");
-    if(!activationCode) throw new AppError(400, "Activation code is required!");
-
-    let decoded: any;
-    try {
-        decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!);
-    } catch {
-        throw new AppError(401, "Token expired or invalid");
-    }
-    const { name, email, password, phone, nid, activationCode: originalCode } = decoded;
-
-    if (activationCode !== originalCode) {
-        throw new AppError(400, "Invalid activation code");
-    }
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-        throw new AppError(400, "User already exists!");
-    }
-    const newUser = new User({ name, email, password, phone, nid, isVerified: true, role: "user" });
-    await newUser.save();
-    res.status(200).json({ success: true, newUser, message: "User registation successfully!" });
-});
-
-// Login user
-export const loginUser = catchAsync(async (req: Request, res:Response) => {
-    const { email, password } = req.body;
-    
-    if(!email) throw new AppError(400, "Email is required!");
-    if(!password || password.length < 6){
-      throw new AppError(400, "Password must be at least 6 characters!");
-    }
-    const user = await User.findOne({ email });
-    if(!user) throw new AppError(401, "User not found!");
-    if(!password || !user.password) throw new AppError(401, "Invalid credentials!");
-    const isMatch = await bcrypt.compare(password, user.password);
-    if(!isMatch) throw new AppError(401, "Invalid credentials!");
-    
-    // access token & refresh token generate
-    const accessToken = generateAccessToken({ id: user._id, role: user.role });
-    const refreshToken = generateRefreshToken({ id: user._id });
-
-    setAuthCookies(res, accessToken, refreshToken);
-
-    const userWithoutPassword = { ...user.toObject(), password: undefined };
-    await redis.set(user._id.toString(), JSON.stringify(userWithoutPassword), "EX", 15 * 60);
-
-    res.status(200).json({ success: true, message: "Login successful" });
-})
-
-// Refresh access token
+// ✅ Refresh access token
 export const refreshAccessToken = catchAsync(async (req: Request, res:Response) => {
     const token = req.cookies.refreshToken;
     if(!token) throw new AppError(401, "Refresh token is required Please login again.");
@@ -130,37 +169,45 @@ export const refreshAccessToken = catchAsync(async (req: Request, res:Response) 
     
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
     // Update Redis cache with fresh user data
-    const plainUser = user.toObject ? user.toObject() : user;
-    const userWithoutPassword = { ...plainUser, password: undefined };
+    const userWithoutPassword = { ...user.toObject(), password: undefined };
     await redis.set(user._id.toString(), JSON.stringify(userWithoutPassword), "EX", 15 * 60);
     setAccessTokenCookie(res, accessToken);
 
     res.status(200).json({ success: true, message: "Access token refreshed" });
 });
 
-// social auth (google, facebook, github)
+// ✅ Social auth
 export const socialAuth = catchAsync(async (req: Request, res: Response) => {
   const { email, name, avatar } = req.body;
 
-  const user = await User.findOne({ email });
+  let user = await User.findOne({ email });
 
   if (!user) {
-    const newUser = await User.create({ email, name, avatar });
-    const accessToken = generateAccessToken({ id: newUser._id, role: newUser.role });
-    const refreshToken = generateRefreshToken({ id: newUser._id });
-    setAuthCookies(res, accessToken, refreshToken);
-    res.status(200).json({ success: true, message: "User created successfully", user: newUser});
-  } else {
-    const accessToken = generateAccessToken({ id: user._id, role: user.role });
-    const refreshToken = generateRefreshToken({ id: user._id });
-    setAuthCookies(res, accessToken, refreshToken);
-    const userWithoutPassword = { ...user.toObject(), password: undefined };
-    await redis.set(user._id.toString(), JSON.stringify(userWithoutPassword), "EX", 15 * 60);
-    res.status(200).json({ success: true, message: "User login successfull!", user });
+    user = await User.create({ email, name, avatar, isVerified: true });
   }
+
+  const accessToken = generateAccessToken({ id: user._id, role: user.role });
+  const refreshToken = generateRefreshToken({ id: user._id });
+  await User.findByIdAndUpdate(user._id, { refreshToken });
+
+  setAuthCookies(res, accessToken, refreshToken);
+
+  const userWithoutPassword = { ...user.toObject(), password: undefined };
+  await redis.set(
+    `user:${user._id}`,
+    JSON.stringify(userWithoutPassword),
+    "EX",
+    15 * 60
+  );
+
+  res.status(200).json({
+    success: true,
+    message: user.isNew ? "User created successfully" : "User login successful",
+    data: userWithoutPassword,
+  });
 });
 
-// forget password (OTP based)
+// ✅ Forget password (OTP based)
 export const forgetPassword = catchAsync(async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) throw new AppError(400, "Email is required");
@@ -195,7 +242,7 @@ export const forgetPassword = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
-// reset password (OTP verify and set new password)
+// ✅ Reset password
 export const resetPassword = catchAsync(async (req: Request, res: Response) => {
   const { otp, newPassword } = req.body;
   if (!otp || !newPassword) {
@@ -209,7 +256,6 @@ export const resetPassword = catchAsync(async (req: Request, res: Response) => {
 
   if (!user) throw new AppError(400, "Invalid or expired OTP");
 
-  // Set new password and clear OTP fields
   user.password = newPassword;
   user.passwordResetToken = undefined!;
   user.passwordResetExpire = undefined!;
@@ -218,7 +264,7 @@ export const resetPassword = catchAsync(async (req: Request, res: Response) => {
   res.status(200).json({ success: true, message: "Password reset successful" });
 });
 
-// logout user
+// ✅ Logout user
 export const logoutUser = catchAsync(async (req: AuthRequest, res: Response) => {
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
@@ -226,10 +272,23 @@ export const logoutUser = catchAsync(async (req: AuthRequest, res: Response) => 
   res.status(200).json({ success: true, message: "Logged out successfully" });
 });
 
-// update user profile
+// ✅ Update user profile
 export const updateProfile = catchAsync(async (req: AuthRequest, res: Response) => {
   const { name, phone } = req.body;
-  const user = await User.findByIdAndUpdate(req.user!._id, { name, phone }, { new: true });
-  res.status(200).json({ success: true, message: "Profile updated successfully", user });
-});
 
+  if (phone && !phoneRegex.test(phone)) {
+    throw new AppError(400, "Please provide a valid Bangladesh phone number!");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user!._id,
+    { name, phone },
+    { new: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Profile updated successfully",
+    user,
+  });
+});
