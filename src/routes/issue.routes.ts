@@ -7,7 +7,7 @@ const router = Router();
 // create issue 
 router.post("/create-issue", isAuthenticated, createIssue);
 router.get("/all-issues", getAllIssues);
-router.get("/:issueId", getIssueById);
+router.get("/single-issue/:issueId", getIssueById);
 router.patch("/edit-issue/:issueId", isAuthenticated, editIssue);
 
 export default router;

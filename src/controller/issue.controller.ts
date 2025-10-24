@@ -23,7 +23,7 @@ export const createIssue = catchAsync(async (req: Request, res: Response) => {
     title,
     category,
     description,
-    images: issueImages,
+    images: issueImages || [],
     location,
     division,
     author,

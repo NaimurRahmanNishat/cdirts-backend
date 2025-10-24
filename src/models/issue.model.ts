@@ -55,7 +55,7 @@ const issueSchema = new Schema<IIssue>(
     description: { type: String, required: true, trim: true },
     images: [
       {
-        public_id: { type: String, required: true },
+        public_id: { type: String },
         url: { type: String, required: true },
       },
     ],
