@@ -17,9 +17,6 @@ app.use(cookieParser());
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
-// global error handler
-app.use(globalErrorHandler);
-
 
 // Routes
 import userRoutes from './routes/user.routes';
@@ -36,5 +33,8 @@ app.use("/api/review", reviewRoutes);
 app.get("/", (_req: Request, res:Response) => {
   res.send("Citizen Driven Issue Reporting & Tracking System Server is Running...")
 })
+ 
+// global error handler
+app.use(globalErrorHandler);
 
 export default app;

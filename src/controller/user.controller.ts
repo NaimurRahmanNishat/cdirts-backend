@@ -1,23 +1,19 @@
 import { Request, Response } from "express";
-import { User } from "../models/user.model";
+import { nidRegex, phoneRegex, User } from "../models/user.model";
 import { AppError } from "../utils/AppError";
 import { catchAsync } from "../middleware/catchAsync";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { sendActivationEmail, sendResetPasswordEmail } from "../utils/email";
+import { sendActivationEmail } from "../utils/email";
 import { redis } from "../utils/redis";
 import { setAccessTokenCookie, setAuthCookies } from "../utils/cookie";
 import {generateAccessToken,generateRefreshToken,verifyRefreshToken} from "../utils/token";
 import { AuthRequest } from "../middleware/auth";
-import { getUserState, setUserState } from "../middleware/authState";
-import config from "../config";
+import {  setUserState } from "../middleware/authState";
 
-// Regex (consistent with schema)
-const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
-const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
 
-// ✅ Register user (send activation email)
+// Register user (send activation email)
 export const registerUser = catchAsync(async (req: Request, res: Response) => {
   const { name, email, password, phone, nid } = req.body;
 
@@ -64,7 +60,7 @@ export const registerUser = catchAsync(async (req: Request, res: Response) => {
   res.status(200).json({success: true,message: "Check your email to activate your account.",token});
 });
 
-// ✅ Activate user
+// Activate user
 export const activateUser = catchAsync(async (req: Request, res: Response) => {
   const { activationCode, token } = req.body;
   if (!token) throw new AppError(400, "Token is required!");
@@ -108,7 +104,7 @@ export const activateUser = catchAsync(async (req: Request, res: Response) => {
   res.status(200).json({ success: true, newUser, message: "User registration successful!" });
 });
 
-// ✅ Login user
+// Login user
 export const loginUser = catchAsync(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -144,7 +140,7 @@ export const loginUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// ✅ Refresh access token
+// Refresh access token
 export const refreshAccessToken = catchAsync(async (req: Request, res:Response) => {
     const token = req.cookies.refreshToken;
     if(!token) throw new AppError(401, "Refresh token is required Please login again.");
@@ -176,7 +172,7 @@ export const refreshAccessToken = catchAsync(async (req: Request, res:Response) 
     res.status(200).json({ success: true, message: "Access token refreshed" });
 });
 
-// ✅ Social auth
+// Social auth
 export const socialAuth = catchAsync(async (req: Request, res: Response) => {
   const { email, name, avatar } = req.body;
 
@@ -207,7 +203,7 @@ export const socialAuth = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// ✅ Forget password (OTP based)
+// Forget password (OTP based)
 export const forgetPassword = catchAsync(async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) throw new AppError(400, "Email is required");
@@ -242,7 +238,7 @@ export const forgetPassword = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
-// ✅ Reset password
+// Reset password
 export const resetPassword = catchAsync(async (req: Request, res: Response) => {
   const { otp, newPassword } = req.body;
   if (!otp || !newPassword) {
@@ -264,7 +260,7 @@ export const resetPassword = catchAsync(async (req: Request, res: Response) => {
   res.status(200).json({ success: true, message: "Password reset successful" });
 });
 
-// ✅ Logout user
+// Logout user
 export const logoutUser = catchAsync(async (req: AuthRequest, res: Response) => {
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
@@ -272,7 +268,7 @@ export const logoutUser = catchAsync(async (req: AuthRequest, res: Response) => 
   res.status(200).json({ success: true, message: "Logged out successfully" });
 });
 
-// ✅ Update user profile
+// Update user profile
 export const updateProfile = catchAsync(async (req: AuthRequest, res: Response) => {
   const { name, phone } = req.body;
 

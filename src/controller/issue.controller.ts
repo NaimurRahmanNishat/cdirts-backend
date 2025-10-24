@@ -4,9 +4,9 @@ import { Request, Response } from "express";
 
 // create issue
 export const createIssue = catchAsync(async (req: Request, res: Response) => {
-  const { title, category, description, image, images, location, division, author } = req.body;
+  const { title, category, description, image, images, location, division, author, date } = req.body;
 
-  if (!title || !category || !description || !location || !division || !author) {
+  if (!title || !category || !description || !location || !division || !author || !date) {
     throw new Error("All fields are required");
   }
 
@@ -27,6 +27,7 @@ export const createIssue = catchAsync(async (req: Request, res: Response) => {
     location,
     division,
     author,
+    date,
   });
 
   res.status(201).json({
@@ -40,7 +41,7 @@ export const createIssue = catchAsync(async (req: Request, res: Response) => {
 export const getAllIssues = catchAsync(async (req: Request, res: Response) => {
   const { page = 1, limit = 10, sort = "-createdAt", status, division, category, search } = req.query;
 
-  // 🔎 Build query object
+  // Build query object
   const query: any = {};
 
   if (status) query.status = status; 
@@ -51,11 +52,11 @@ export const getAllIssues = catchAsync(async (req: Request, res: Response) => {
     query.$text = { $search: search as string }; 
   }
 
-  // 📊 Pagination
+  // Pagination
   const pageNumber = parseInt(page as string, 10);
   const limitNumber = parseInt(limit as string, 10);
 
-  // 🛠️ Fetch issues with filter/sort/pagination
+  // Fetch issues with filter/sort/pagination
   const issues = await Issue.find(query)
     .populate({
       path: "reviews",
@@ -70,7 +71,7 @@ export const getAllIssues = catchAsync(async (req: Request, res: Response) => {
     .limit(limitNumber)
     .lean();
 
-  // 📌 Total count for pagination
+  // Total count for pagination
   const total = await Issue.countDocuments(query);
 
   res.status(200).json({
@@ -109,9 +110,9 @@ export const getIssueById = catchAsync(async (req: Request, res: Response) => {
 // edit issue
 export const editIssue = catchAsync(async (req: Request, res: Response) => {
   const { issueId } = req.params;
-  const { title, category, description, image, images, location, division } = req.body;
+  const { title, category, description, image, images, location, division, date } = req.body;
 
-  if (!title || !category || !description || !location || !division) {
+  if (!title || !category || !description || !location || !division || !date) {
     throw new Error("All fields are required");
   }
 
@@ -133,6 +134,7 @@ export const editIssue = catchAsync(async (req: Request, res: Response) => {
       images: issueImages,
       location,
       division,
+      date,
     },
     { new: true }
   );

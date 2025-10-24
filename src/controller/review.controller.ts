@@ -12,14 +12,13 @@ export const createReview = catchAsync(async (req: Request, res: Response) => {
     throw new Error("Issue ID, author, and comment are required");
   }
 
-  // Review তৈরি
   const newReview = await Review.create({
     issue: issueId,
     author,
     comment,
   });
 
-  // Issue এর সাথে Review লিংক
+  // Issue collection a Review link
   await Issue.findByIdAndUpdate(issueId, { $push: { reviews: newReview._id } });
 
   res.status(201).json({

@@ -4,7 +4,7 @@ import { isAuthenticated } from "../middleware/auth";
 
 const router = Router();
 
-// create issue
+// create issue 
 router.post("/create-issue", isAuthenticated, createIssue);
 router.get("/all-issues", getAllIssues);
 router.get("/:issueId", getIssueById);

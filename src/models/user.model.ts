@@ -23,9 +23,9 @@ export interface IUser extends mongoose.Document {
 }
 
 // ✅ Regex (Bangladesh specific)
-const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
-const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
-const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
+export const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+export const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
+export const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
 
 const userSchema = new mongoose.Schema<IUser>(
   {

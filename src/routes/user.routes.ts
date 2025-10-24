@@ -26,7 +26,7 @@ router.post("/forgot-password", forgetPassword);
 router.post("/reset-password", resetPassword);
 
 // 🚪 Logout & Profile
-router.post("/logout", logoutUser);
+router.post("/logout", isAuthenticated, logoutUser);
 router.patch("/update-profile", isAuthenticated, updateProfile);
 
 export default router;
