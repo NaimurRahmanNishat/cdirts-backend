@@ -3,13 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.User = void 0;
+exports.User = exports.nidRegex = exports.phoneRegex = exports.emailRegex = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 // ✅ Regex (Bangladesh specific)
-const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
-const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
-const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
+exports.emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+exports.phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
+exports.nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
 const userSchema = new mongoose_1.default.Schema({
     name: {
         type: String,
@@ -24,7 +24,7 @@ const userSchema = new mongoose_1.default.Schema({
         required: [true, "Email is required"],
         lowercase: true,
         validate: {
-            validator: (v) => emailRegex.test(v),
+            validator: (v) => exports.emailRegex.test(v),
             message: (props) => `${props.value} is not a valid email!`,
         },
     },
@@ -49,7 +49,7 @@ const userSchema = new mongoose_1.default.Schema({
         unique: true,
         sparse: true,
         validate: {
-            validator: (v) => !v || phoneRegex.test(v),
+            validator: (v) => !v || exports.phoneRegex.test(v),
             message: "Please provide a valid Bangladesh phone number",
         },
     },
@@ -58,7 +58,7 @@ const userSchema = new mongoose_1.default.Schema({
         unique: true,
         sparse: true,
         validate: {
-            validator: (v) => !v || nidRegex.test(v),
+            validator: (v) => !v || exports.nidRegex.test(v),
             message: "Please provide a valid Bangladesh NID number",
         },
     },

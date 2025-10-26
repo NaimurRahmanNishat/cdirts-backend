@@ -5,6 +5,7 @@ export interface IReply {
     createdAt: Date;
 }
 export interface IReview extends Document {
+    issue: mongoose.Types.ObjectId;
     author: mongoose.Types.ObjectId;
     comment: string;
     createdAt: Date;

@@ -5,6 +5,7 @@ import { redis } from "../utils/redis";
 import jwt from "jsonwebtoken";
 import config from "../config";
 import { getUserState, setUserState } from "./authState";
+import mongoose from "mongoose";
 
 export interface AuthRequest extends Request {
   user?: IUser | undefined;
@@ -26,7 +27,7 @@ export const isAuthenticated = async (req: AuthRequest, res: Response, next: Nex
       await setUserState(decoded.id, plain);
       userData = plain as any;
     }
-    req.user = userData as any;
+     req.user = userData as IUser & { _id: mongoose.Types.ObjectId };
     next();
   } catch(err) {
     console.error("isAuthenticated error:", err);

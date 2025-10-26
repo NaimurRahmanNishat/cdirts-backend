@@ -17,7 +17,7 @@ router.post("/refresh-token", user_controller_1.refreshAccessToken);
 router.post("/forgot-password", user_controller_1.forgetPassword);
 router.post("/reset-password", user_controller_1.resetPassword);
 // 🚪 Logout & Profile
-router.post("/logout", user_controller_1.logoutUser);
+router.post("/logout", auth_1.isAuthenticated, user_controller_1.logoutUser);
 router.patch("/update-profile", auth_1.isAuthenticated, user_controller_1.updateProfile);
 exports.default = router;
 //# sourceMappingURL=user.routes.js.map

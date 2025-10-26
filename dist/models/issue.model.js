@@ -50,12 +50,12 @@ var IssueStatus;
 (function (IssueStatus) {
     IssueStatus["PENDING"] = "pending";
     IssueStatus["IN_PROGRESS"] = "in-progress";
-    IssueStatus["RESOLVED"] = "resolved";
+    IssueStatus["SOLVED"] = "solved";
 })(IssueStatus || (exports.IssueStatus = IssueStatus = {}));
 var IssueCategory;
 (function (IssueCategory) {
     IssueCategory["ELECTRICITY"] = "electricity";
-    IssueCategory["WATER"] = "water";
+    IssueCategory["WATAR"] = "watar";
     IssueCategory["GAS"] = "gas";
     IssueCategory["BRACKING_ROAD"] = "bracking-road";
     IssueCategory["OTHER"] = "other";
@@ -71,7 +71,7 @@ const issueSchema = new mongoose_1.Schema({
     description: { type: String, required: true, trim: true },
     images: [
         {
-            public_id: { type: String, required: true },
+            public_id: { type: String },
             url: { type: String, required: true },
         },
     ],
@@ -88,6 +88,9 @@ const issueSchema = new mongoose_1.Schema({
     },
     author: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     reviews: [{ type: mongoose_1.Schema.Types.ObjectId, ref: "Review" }],
+    date: { type: Date, default: Date.now },
+    approvedBy: { type: mongoose_1.Schema.Types.ObjectId, ref: "User" },
+    approvedAt: { type: Date },
 }, { timestamps: true });
 // search index
 issueSchema.index({ title: "text", description: "text", location: "text" });

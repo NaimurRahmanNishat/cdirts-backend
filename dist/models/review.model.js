@@ -41,6 +41,7 @@ const replySchema = new mongoose_1.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 const reviewSchema = new mongoose_1.Schema({
+    issue: { type: mongoose_1.Schema.Types.ObjectId, ref: "Issue", required: true },
     author: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     comment: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },

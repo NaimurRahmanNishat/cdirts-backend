@@ -2,15 +2,19 @@ import { Request, Response } from "express";
 import { catchAsync } from "../middleware/catchAsync";
 import { Review } from "../models/review.model";
 import { Issue } from "../models/issue.model";
+import { AppError } from "../utils/AppError";
 
-// Review create
+// Create a review
 export const createReview = catchAsync(async (req: Request, res: Response) => {
   const { issueId } = req.params;
   const { author, comment } = req.body;
 
   if (!issueId || !author || !comment) {
-    throw new Error("Issue ID, author, and comment are required");
+    throw new AppError(400, "Issue ID, author, and comment are required!");
   }
+
+  const issue = await Issue.findById(issueId);
+  if (!issue) throw new AppError(404, "Issue not found!");
 
   const newReview = await Review.create({
     issue: issueId,
@@ -18,29 +22,26 @@ export const createReview = catchAsync(async (req: Request, res: Response) => {
     comment,
   });
 
-  // Issue collection a Review link
   await Issue.findByIdAndUpdate(issueId, { $push: { reviews: newReview._id } });
 
   res.status(201).json({
     success: true,
     message: "Review added successfully!",
-    review: newReview,
+    data: newReview,
   });
 });
 
-// Reply create
+// Add reply to a review
 export const addReplyToReview = catchAsync(async (req: Request, res: Response) => {
   const { reviewId } = req.params;
   const { author, comment } = req.body;
 
   if (!reviewId || !author || !comment) {
-    throw new Error("Review ID, author, and comment are required");
+    throw new AppError(400, "Review ID, author, and comment are required!");
   }
 
   const review = await Review.findById(reviewId);
-  if (!review) {
-    return res.status(404).json({ success: false, message: "Review not found" });
-  }
+  if (!review) throw new AppError(404, "Review not found!");
 
   review.replies.push({ author, comment, createdAt: new Date() });
   await review.save();
@@ -48,7 +49,6 @@ export const addReplyToReview = catchAsync(async (req: Request, res: Response) =
   res.status(201).json({
     success: true,
     message: "Reply added successfully!",
-    review,
+    data: review,
   });
 });
-

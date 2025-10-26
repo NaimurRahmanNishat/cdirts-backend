@@ -12,11 +12,11 @@ export declare enum BangladeshDivision {
 export declare enum IssueStatus {
     PENDING = "pending",
     IN_PROGRESS = "in-progress",
-    RESOLVED = "resolved"
+    SOLVED = "solved"
 }
 export declare enum IssueCategory {
     ELECTRICITY = "electricity",
-    WATER = "water",
+    WATAR = "watar",
     GAS = "gas",
     BRACKING_ROAD = "bracking-road",
     OTHER = "other"
@@ -34,6 +34,9 @@ export interface IIssue extends Document {
     status: IssueStatus;
     author: mongoose.Types.ObjectId;
     reviews: mongoose.Types.ObjectId[];
+    date: Date;
+    approvedBy: mongoose.Types.ObjectId;
+    approvedAt: Date;
     createdAt?: Date;
     updatedAt?: Date;
 }

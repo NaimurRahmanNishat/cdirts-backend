@@ -7,6 +7,7 @@ export interface IReply {
 }
 
 export interface IReview extends Document {
+  issue: mongoose.Types.ObjectId;
   author: mongoose.Types.ObjectId;
   comment: string;
   createdAt: Date;
@@ -20,6 +21,7 @@ const replySchema = new Schema<IReply>({
 });
 
 const reviewSchema = new Schema<IReview>({
+  issue: { type: Schema.Types.ObjectId, ref: "Issue", required: true },
   author: { type: Schema.Types.ObjectId, ref: "User", required: true },
   comment: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },

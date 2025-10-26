@@ -15,3 +15,17 @@ issu model
     location
     status
     phone number
+
+
+admin stats requirment
+    total issue
+    pending issue 
+    in progress issue
+    solve issue
+
+user stats requirment
+    total issue create
+    total review and comment 
+    total issue solve 
+    total issue pending
+    total issue in progress

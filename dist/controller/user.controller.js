@@ -15,10 +15,7 @@ const redis_1 = require("../utils/redis");
 const cookie_1 = require("../utils/cookie");
 const token_1 = require("../utils/token");
 const authState_1 = require("../middleware/authState");
-// Regex (consistent with schema)
-const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
-const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
-// ✅ Register user (send activation email)
+// Register user (send activation email)
 exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { name, email, password, phone, nid } = req.body;
     // Validation
@@ -30,10 +27,10 @@ exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (!password || password.length < 6) {
         throw new AppError_1.AppError(400, "Password must be at least 6 characters!");
     }
-    if (!phone || !phoneRegex.test(phone)) {
+    if (!phone || !user_model_1.phoneRegex.test(phone)) {
         throw new AppError_1.AppError(400, "Please provide a valid Bangladesh phone number!");
     }
-    if (!nid || !nidRegex.test(nid)) {
+    if (!nid || !user_model_1.nidRegex.test(nid)) {
         throw new AppError_1.AppError(400, "Please provide a valid Bangladesh NID number!");
     }
     const existingUser = await user_model_1.User.findOne({ email });
@@ -56,7 +53,7 @@ exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     }
     res.status(200).json({ success: true, message: "Check your email to activate your account.", token });
 });
-// ✅ Activate user
+// Activate user
 exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { activationCode, token } = req.body;
     if (!token)
@@ -94,7 +91,7 @@ exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     await redis_1.redis.del(email);
     res.status(200).json({ success: true, newUser, message: "User registration successful!" });
 });
-// ✅ Login user
+// Login user
 exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email, password } = req.body;
     if (!email)
@@ -127,7 +124,7 @@ exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
         data: safeUser,
     });
 });
-// ✅ Refresh access token
+// Refresh access token
 exports.refreshAccessToken = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const token = req.cookies.refreshToken;
     if (!token)
@@ -159,7 +156,7 @@ exports.refreshAccessToken = (0, catchAsync_1.catchAsync)(async (req, res) => {
     (0, cookie_1.setAccessTokenCookie)(res, accessToken);
     res.status(200).json({ success: true, message: "Access token refreshed" });
 });
-// ✅ Social auth
+// Social auth
 exports.socialAuth = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email, name, avatar } = req.body;
     let user = await user_model_1.User.findOne({ email });
@@ -178,7 +175,7 @@ exports.socialAuth = (0, catchAsync_1.catchAsync)(async (req, res) => {
         data: userWithoutPassword,
     });
 });
-// ✅ Forget password (OTP based)
+// Forget password (OTP based)
 exports.forgetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email } = req.body;
     if (!email)
@@ -207,7 +204,7 @@ exports.forgetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
         message: "Password reset OTP sent to your email",
     });
 });
-// ✅ Reset password
+// Reset password
 exports.resetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { otp, newPassword } = req.body;
     if (!otp || !newPassword) {
@@ -225,17 +222,17 @@ exports.resetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
     await user.save();
     res.status(200).json({ success: true, message: "Password reset successful" });
 });
-// ✅ Logout user
+// Logout user
 exports.logoutUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     await redis_1.redis.del(req.user._id);
     res.status(200).json({ success: true, message: "Logged out successfully" });
 });
-// ✅ Update user profile
+// Update user profile
 exports.updateProfile = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { name, phone } = req.body;
-    if (phone && !phoneRegex.test(phone)) {
+    if (phone && !user_model_1.phoneRegex.test(phone)) {
         throw new AppError_1.AppError(400, "Please provide a valid Bangladesh phone number!");
     }
     const user = await user_model_1.User.findByIdAndUpdate(req.user._id, { name, phone }, { new: true });

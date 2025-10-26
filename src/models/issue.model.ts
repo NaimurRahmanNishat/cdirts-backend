@@ -14,7 +14,7 @@ export enum BangladeshDivision {
 export enum IssueStatus {
   PENDING = "pending",
   IN_PROGRESS = "in-progress",
-  RESOLVED = "resolved",
+  SOLVED = "solved",
 }
 
 export enum IssueCategory {
@@ -39,6 +39,8 @@ export interface IIssue extends Document {
   author: mongoose.Types.ObjectId;
   reviews: mongoose.Types.ObjectId[];
   date: Date;
+  approvedBy: mongoose.Types.ObjectId;
+  approvedAt: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -73,6 +75,8 @@ const issueSchema = new Schema<IIssue>(
     author: { type: Schema.Types.ObjectId, ref: "User", required: true },
     reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
     date: { type: Date, default: Date.now },
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    approvedAt: { type: Date },
   },
   { timestamps: true }
 );

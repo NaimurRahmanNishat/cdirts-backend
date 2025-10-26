@@ -7,33 +7,78 @@ import config from "./config";
 import globalErrorHandler from "./middleware/globalError";
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: [config.client_url],
+    origin: [config.client_url, "http://localhost:5173"],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   })
 );
+
+// Increase body parser limits for image uploads
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser());
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
 // Routes
 import userRoutes from "./routes/user.routes";
-app.use("/api/auth", userRoutes);
-
-import issuRoutes from "./routes/issue.routes";
-app.use("/api/issue", issuRoutes);
-
+import statsRoutes from "./routes/stats.routes";
 import reviewRoutes from "./routes/review.routes";
+import issuRoutes from "./routes/issue.routes";
 import { UploadImage } from "./utils/UploadImage";
-app.use("/api/review", reviewRoutes);
 
-app.post("/uploadImage", (req, res) => {
-  UploadImage(req.body.image)
-    .then((url) => res.send(url))
-    .catch((error) => res.status(500).send(error));
+app.use("/api/auth", userRoutes);
+app.use("/api/issue", issuRoutes);
+app.use("/api/review", reviewRoutes);
+app.use("/api/stats", statsRoutes);
+
+app.post("/uploadImage", async (req: Request, res: Response) => {
+  try {
+    const { image } = req.body;
+    
+    if (!image) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Image data is required" 
+      });
+    }
+
+    // Check if base64 string is too large (rough estimate)
+    if (image.length > 15 * 1024 * 1024) { // 15MB limit for base64
+      return res.status(413).json({
+        success: false,
+        message: "Image size too large. Maximum size is 10MB"
+      });
+    }
+
+    // Upload to Cloudinary
+    const url = await UploadImage(image);
+    
+    res.status(200).json({
+      success: true,
+      url: url,
+      message: "Image uploaded successfully"
+    });
+    
+  } catch (error: any) {
+    console.error("Image upload error:", error);
+    
+    // Specific error handling
+    if (error.message.includes("File size too large")) {
+      return res.status(413).json({
+        success: false,
+        message: "Image size too large. Maximum size is 10MB"
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: error.message || "Image upload failed"
+    });
+  }
 });
 
 app.get("/", (_req: Request, res: Response) => {
