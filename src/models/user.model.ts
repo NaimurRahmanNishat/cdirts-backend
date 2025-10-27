@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 
+// User Interface
 export interface IUser extends mongoose.Document {
   _id: string;
   name: string;
@@ -16,13 +17,13 @@ export interface IUser extends mongoose.Document {
   };
   passwordResetToken?: string;
   passwordResetExpire?: Date;
-  refreshToken?: string;
+  // Refresh token handled in Redis (no longer in DB)
   phone?: string;
   nid?: string;
   comparePassword(password: string): Promise<boolean>;
 }
 
-// ✅ Regex (Bangladesh specific)
+// Regex (Bangladesh specific)
 export const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
 export const phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
 export const nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
@@ -46,7 +47,13 @@ const userSchema = new mongoose.Schema<IUser>(
         message: (props) => `${props.value} is not a valid email!`,
       },
     },
-    password: { type: String, required: true, minlength: 6, trim: true },
+    password: {
+      type: String,
+      required: true,
+      minlength: 6,
+      trim: true,
+      select: false, // prevent returning password in queries
+    },
     isVerified: { type: Boolean, default: false },
     otp: String,
     otpExpire: Date,
@@ -56,12 +63,14 @@ const userSchema = new mongoose.Schema<IUser>(
       default: "user",
     },
     avatar: {
-      public_id: String,
-      url: String,
+      public_id: { type: String, default: "default_avatar" },
+      url: {
+        type: String,
+        default: "https://res.cloudinary.com/demo/image/upload/v1710000000/default-avatar.png",
+      },
     },
     passwordResetToken: String,
     passwordResetExpire: Date,
-    refreshToken: String,
     phone: {
       type: String,
       unique: true,
@@ -84,15 +93,15 @@ const userSchema = new mongoose.Schema<IUser>(
   { timestamps: true }
 );
 
-// ✅ Hash password before saving
+// Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-  if (this.password.startsWith("$2")) return next(); // support all bcrypt prefixes
+  if (this.password.startsWith("$2")) return next(); // already hashed
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
-// ✅ Compare password method
+// Compare password method
 userSchema.methods.comparePassword = async function (password: string) {
   return await bcrypt.compare(password, this.password);
 };

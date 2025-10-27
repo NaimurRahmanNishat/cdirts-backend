@@ -55,31 +55,41 @@ var IssueStatus;
 var IssueCategory;
 (function (IssueCategory) {
     IssueCategory["ELECTRICITY"] = "electricity";
-    IssueCategory["WATAR"] = "watar";
+    IssueCategory["WATER"] = "water";
     IssueCategory["GAS"] = "gas";
-    IssueCategory["BRACKING_ROAD"] = "bracking-road";
+    IssueCategory["BROKEN_ROAD"] = "broken-road";
     IssueCategory["OTHER"] = "other";
 })(IssueCategory || (exports.IssueCategory = IssueCategory = {}));
 const issueSchema = new mongoose_1.Schema({
-    title: { type: String, required: true, trim: true },
+    title: {
+        type: String,
+        required: [true, "Title is required"],
+        trim: true,
+        minlength: [3, "Title must be at least 3 characters long"],
+    },
     category: {
         type: String,
         enum: Object.values(IssueCategory),
-        required: true,
+        required: [true, "Category is required"],
         trim: true,
     },
-    description: { type: String, required: true, trim: true },
+    description: {
+        type: String,
+        required: [true, "Description is required"],
+        trim: true,
+        minlength: [10, "Description must be at least 10 characters long"],
+    },
     images: [
         {
             public_id: { type: String },
             url: { type: String, required: true },
         },
     ],
-    location: { type: String, required: true, trim: true },
+    location: { type: String, required: [true, "Location is required"], trim: true },
     division: {
         type: String,
         enum: Object.values(BangladeshDivision),
-        required: true,
+        required: [true, "Division is required"],
     },
     status: {
         type: String,
@@ -89,10 +99,10 @@ const issueSchema = new mongoose_1.Schema({
     author: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
     reviews: [{ type: mongoose_1.Schema.Types.ObjectId, ref: "Review" }],
     date: { type: Date, default: Date.now },
-    approvedBy: { type: mongoose_1.Schema.Types.ObjectId, ref: "User" },
-    approvedAt: { type: Date },
+    approvedBy: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", default: null },
+    approvedAt: { type: Date, default: null },
 }, { timestamps: true });
-// search index
+// Full-text search index
 issueSchema.index({ title: "text", description: "text", location: "text" });
 exports.Issue = mongoose_1.default.model("Issue", issueSchema);
 //# sourceMappingURL=issue.model.js.map

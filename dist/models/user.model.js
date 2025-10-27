@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.User = exports.nidRegex = exports.phoneRegex = exports.emailRegex = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
-// ✅ Regex (Bangladesh specific)
+// Regex (Bangladesh specific)
 exports.emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
 exports.phoneRegex = /^(\+88)?01[3-9]\d{8}$/;
 exports.nidRegex = /^\d{10}$|^\d{13}$|^\d{17}$/;
@@ -28,7 +28,13 @@ const userSchema = new mongoose_1.default.Schema({
             message: (props) => `${props.value} is not a valid email!`,
         },
     },
-    password: { type: String, required: true, minlength: 6, trim: true },
+    password: {
+        type: String,
+        required: true,
+        minlength: 6,
+        trim: true,
+        select: false, // prevent returning password in queries
+    },
     isVerified: { type: Boolean, default: false },
     otp: String,
     otpExpire: Date,
@@ -38,12 +44,14 @@ const userSchema = new mongoose_1.default.Schema({
         default: "user",
     },
     avatar: {
-        public_id: String,
-        url: String,
+        public_id: { type: String, default: "default_avatar" },
+        url: {
+            type: String,
+            default: "https://res.cloudinary.com/demo/image/upload/v1710000000/default-avatar.png",
+        },
     },
     passwordResetToken: String,
     passwordResetExpire: Date,
-    refreshToken: String,
     phone: {
         type: String,
         unique: true,
@@ -63,16 +71,16 @@ const userSchema = new mongoose_1.default.Schema({
         },
     },
 }, { timestamps: true });
-// ✅ Hash password before saving
+// Hash password before saving
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password"))
         return next();
     if (this.password.startsWith("$2"))
-        return next(); // support all bcrypt prefixes
+        return next(); // already hashed
     this.password = await bcrypt_1.default.hash(this.password, 10);
     next();
 });
-// ✅ Compare password method
+// Compare password method
 userSchema.methods.comparePassword = async function (password) {
     return await bcrypt_1.default.compare(password, this.password);
 };

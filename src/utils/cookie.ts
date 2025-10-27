@@ -11,7 +11,7 @@ export const setAuthCookies = ( res: Response, accessToken: string, refreshToken
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: config.nodeEnv === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
@@ -19,7 +19,7 @@ export const setAuthCookies = ( res: Response, accessToken: string, refreshToken
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     secure: config.nodeEnv === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 };
@@ -28,7 +28,7 @@ export const setAccessTokenCookie = ( res: Response, accessToken: string ) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: config.nodeEnv === "production",
-    sameSite: "lax",
+    sameSite: "strict",
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 };

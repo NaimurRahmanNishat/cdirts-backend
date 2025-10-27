@@ -14,7 +14,6 @@ export interface IUser extends mongoose.Document {
     };
     passwordResetToken?: string;
     passwordResetExpire?: Date;
-    refreshToken?: string;
     phone?: string;
     nid?: string;
     comparePassword(password: string): Promise<boolean>;

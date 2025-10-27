@@ -37,15 +37,14 @@ exports.Review = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const replySchema = new mongoose_1.Schema({
     author: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
-    comment: { type: String, required: true },
+    comment: { type: String, required: true, trim: true },
     createdAt: { type: Date, default: Date.now },
-});
+}, { _id: true });
 const reviewSchema = new mongoose_1.Schema({
     issue: { type: mongoose_1.Schema.Types.ObjectId, ref: "Issue", required: true },
     author: { type: mongoose_1.Schema.Types.ObjectId, ref: "User", required: true },
-    comment: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now },
-    replies: [replySchema],
-});
+    comment: { type: String, required: true, trim: true },
+    replies: { type: [replySchema], default: [] },
+}, { timestamps: true });
 exports.Review = mongoose_1.default.model("Review", reviewSchema);
 //# sourceMappingURL=review.model.js.map

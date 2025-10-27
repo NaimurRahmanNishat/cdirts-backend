@@ -19,9 +19,9 @@ export enum IssueStatus {
 
 export enum IssueCategory {
   ELECTRICITY = "electricity",
-  WATAR = "watar",
+  WATER = "water",
   GAS = "gas",
-  BRACKING_ROAD = "bracking-road",
+  BROKEN_ROAD = "broken-road",
   OTHER = "other",
 }
 
@@ -32,40 +32,50 @@ export interface IIssue extends Document {
   images: {
     public_id: string;
     url: string;
-  }[]; // Array of image objects 
+  }[];
   location: string;
   division: BangladeshDivision;
   status: IssueStatus;
   author: mongoose.Types.ObjectId;
   reviews: mongoose.Types.ObjectId[];
   date: Date;
-  approvedBy: mongoose.Types.ObjectId;
-  approvedAt: Date;
+  approvedBy?: mongoose.Types.ObjectId | null;
+  approvedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 const issueSchema = new Schema<IIssue>(
   {
-    title: { type: String, required: true, trim: true },
+    title: {
+      type: String,
+      required: [true, "Title is required"],
+      trim: true,
+      minlength: [3, "Title must be at least 3 characters long"],
+    },
     category: {
       type: String,
       enum: Object.values(IssueCategory),
-      required: true,
+      required: [true, "Category is required"],
       trim: true,
     },
-    description: { type: String, required: true, trim: true },
+    description: {
+      type: String,
+      required: [true, "Description is required"],
+      trim: true,
+      minlength: [10, "Description must be at least 10 characters long"],
+    },
     images: [
       {
         public_id: { type: String },
         url: { type: String, required: true },
       },
     ],
-    location: { type: String, required: true, trim: true },
+    location: { type: String, required: [true, "Location is required"], trim: true },
     division: {
       type: String,
       enum: Object.values(BangladeshDivision),
-      required: true,
+      required: [true, "Division is required"],
     },
     status: {
       type: String,
@@ -75,13 +85,13 @@ const issueSchema = new Schema<IIssue>(
     author: { type: Schema.Types.ObjectId, ref: "User", required: true },
     reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
     date: { type: Date, default: Date.now },
-    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
-    approvedAt: { type: Date },
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    approvedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
 
-// search index
+// Full-text search index
 issueSchema.index({ title: "text", description: "text", location: "text" });
 
 export const Issue = mongoose.model<IIssue>("Issue", issueSchema);

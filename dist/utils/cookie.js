@@ -10,14 +10,14 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
         secure: config_1.default.nodeEnv === "production",
-        sameSite: "lax",
+        sameSite: "strict",
         maxAge: 15 * 60 * 1000, // 15 minutes
     });
     // Set refresh token cookie (7 days)
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: config_1.default.nodeEnv === "production",
-        sameSite: "lax",
+        sameSite: "strict",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 };

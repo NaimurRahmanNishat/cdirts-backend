@@ -3,14 +3,16 @@ import { catchAsync } from "../middleware/catchAsync";
 import { Review } from "../models/review.model";
 import { Issue } from "../models/issue.model";
 import { AppError } from "../utils/AppError";
+import { AuthRequest } from "../middleware/auth";
 
-// Create a review
-export const createReview = catchAsync(async (req: Request, res: Response) => {
+// Create a review (authenticated user)
+export const createReview = catchAsync(async (req: AuthRequest, res: Response) => {
   const { issueId } = req.params;
-  const { author, comment } = req.body;
+  const { comment } = req.body;
+  const author = req.user?._id;
 
   if (!issueId || !author || !comment) {
-    throw new AppError(400, "Issue ID, author, and comment are required!");
+    throw new AppError(400, "Issue ID and comment are required!");
   }
 
   const issue = await Issue.findById(issueId);
@@ -24,20 +26,18 @@ export const createReview = catchAsync(async (req: Request, res: Response) => {
 
   await Issue.findByIdAndUpdate(issueId, { $push: { reviews: newReview._id } });
 
-  res.status(201).json({
-    success: true,
-    message: "Review added successfully!",
-    data: newReview,
-  });
+  res.status(201).json({ success: true, message: "Review added successfully!", data: newReview });
 });
 
-// Add reply to a review
-export const addReplyToReview = catchAsync(async (req: Request, res: Response) => {
+
+// Add reply to a review (authenticated user)
+export const addReplyToReview = catchAsync(async (req: AuthRequest, res: Response) => {
   const { reviewId } = req.params;
-  const { author, comment } = req.body;
+  const { comment } = req.body;
+  const author = req.user?._id;
 
   if (!reviewId || !author || !comment) {
-    throw new AppError(400, "Review ID, author, and comment are required!");
+    throw new AppError(400, "Review ID and comment are required!");
   }
 
   const review = await Review.findById(reviewId);
@@ -46,9 +46,5 @@ export const addReplyToReview = catchAsync(async (req: Request, res: Response) =
   review.replies.push({ author, comment, createdAt: new Date() });
   await review.save();
 
-  res.status(201).json({
-    success: true,
-    message: "Reply added successfully!",
-    data: review,
-  });
+  res.status(201).json({ success: true, message: "Reply added successfully!", data: review });
 });

@@ -11,24 +11,25 @@ const config_1 = __importDefault(require("../config"));
 const authState_1 = require("./authState");
 // Authentication middleware
 const isAuthenticated = async (req, res, next) => {
-    const token = req.cookies.accessToken;
+    const token = req.cookies?.accessToken;
     if (!token)
         return next(new AppError_1.AppError(401, "Access token missing"));
     try {
         const decoded = jsonwebtoken_1.default.verify(token, config_1.default.jwt_access_secret);
         let userData = await (0, authState_1.getUserState)(decoded.id);
         if (!userData) {
-            const dbUser = await user_model_1.User.findById(decoded.id).lean();
+            const dbUser = await user_model_1.User.findById(decoded.id).select("-password").lean();
             if (!dbUser)
                 return next(new AppError_1.AppError(404, "User not found"));
+            // ensure _id is string
             const plain = { ...dbUser };
-            if (plain.password)
-                delete plain.password;
+            if (plain._id && plain._id.toString)
+                plain._id = plain._id.toString();
             await (0, authState_1.setUserState)(decoded.id, plain);
             userData = plain;
         }
         req.user = userData;
-        next();
+        return next();
     }
     catch (err) {
         console.error("isAuthenticated error:", err);
@@ -39,7 +40,7 @@ exports.isAuthenticated = isAuthenticated;
 // Authorization middleware
 const authorizeRole = (...roles) => {
     return (req, res, next) => {
-        if (!req.user || !roles.includes(req.user.role)) {
+        if (!req.user || !roles.includes((req.user.role || "").toString())) {
             return next(new AppError_1.AppError(403, "Not authorized"));
         }
         next();

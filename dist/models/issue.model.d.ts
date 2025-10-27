@@ -16,9 +16,9 @@ export declare enum IssueStatus {
 }
 export declare enum IssueCategory {
     ELECTRICITY = "electricity",
-    WATAR = "watar",
+    WATER = "water",
     GAS = "gas",
-    BRACKING_ROAD = "bracking-road",
+    BROKEN_ROAD = "broken-road",
     OTHER = "other"
 }
 export interface IIssue extends Document {
@@ -35,8 +35,8 @@ export interface IIssue extends Document {
     author: mongoose.Types.ObjectId;
     reviews: mongoose.Types.ObjectId[];
     date: Date;
-    approvedBy: mongoose.Types.ObjectId;
-    approvedAt: Date;
+    approvedBy?: mongoose.Types.ObjectId | null;
+    approvedAt?: Date | null;
     createdAt?: Date;
     updatedAt?: Date;
 }

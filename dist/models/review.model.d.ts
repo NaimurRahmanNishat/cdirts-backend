@@ -8,8 +8,9 @@ export interface IReview extends Document {
     issue: mongoose.Types.ObjectId;
     author: mongoose.Types.ObjectId;
     comment: string;
-    createdAt: Date;
     replies: IReply[];
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 export declare const Review: mongoose.Model<IReview, {}, {}, {}, mongoose.Document<unknown, {}, IReview, {}, {}> & IReview & Required<{
     _id: unknown;

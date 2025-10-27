@@ -40,7 +40,7 @@ exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const hashedPassword = await bcrypt_1.default.hash(password, 10);
     const activationData = { name, email, phone, nid, activationCode };
     // Save hashed password temporarily in Redis for 10 minutes
-    await redis_1.redis.set(email, hashedPassword, "EX", 600);
+    await redis_1.redis.set(`activation:${email}`, hashedPassword, "EX", 600);
     const token = jsonwebtoken_1.default.sign(activationData, process.env.JWT_ACCESS_SECRET, {
         expiresIn: "10m",
     });
@@ -49,9 +49,15 @@ exports.registerUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     }
     catch (error) {
         console.error("Failed to send activation email:", error);
+        // cleanup redis
+        await redis_1.redis.del(`activation:${email}`);
         throw new AppError_1.AppError(500, "Failed to send activation email. Please try again later.");
     }
-    res.status(200).json({ success: true, message: "Check your email to activate your account.", token });
+    res.status(200).json({
+        success: true,
+        message: "Check your email to activate your account.",
+        token,
+    });
 });
 // Activate user
 exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
@@ -75,7 +81,7 @@ exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (userExists) {
         throw new AppError_1.AppError(400, "User already exists!");
     }
-    const hashedPassword = await redis_1.redis.get(email);
+    const hashedPassword = await redis_1.redis.get(`activation:${email}`);
     if (!hashedPassword)
         throw new AppError_1.AppError(400, "Activation time expired. Please register again.");
     const newUser = new user_model_1.User({
@@ -88,7 +94,7 @@ exports.activateUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
         role: "user",
     });
     await newUser.save();
-    await redis_1.redis.del(email);
+    await redis_1.redis.del(`activation:${email}`);
     res.status(200).json({ success: true, newUser, message: "User registration successful!" });
 });
 // Login user
@@ -99,7 +105,8 @@ exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (!password || password.length < 6) {
         throw new AppError_1.AppError(400, "Password must be at least 6 characters!");
     }
-    const user = await user_model_1.User.findOne({ email });
+    // password field is select:false in model -> select it explicitly
+    const user = await user_model_1.User.findOne({ email }).select("+password");
     if (!user)
         throw new AppError_1.AppError(401, "User not found!");
     if (!user.password)
@@ -109,14 +116,18 @@ exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
         throw new AppError_1.AppError(401, "Invalid credentials!");
     const accessToken = (0, token_1.generateAccessToken)({ id: user._id, role: user.role });
     const refreshToken = (0, token_1.generateRefreshToken)({ id: user._id });
+    // Store refresh token in Redis
+    await redis_1.redis.set(`refresh_token:${user._id}`, refreshToken, "EX", 7 * 24 * 60 * 60); // 7 days
     (0, cookie_1.setAuthCookies)(res, accessToken, refreshToken);
-    (0, cookie_1.setAccessTokenCookie)(res, accessToken);
+    // Safe user data
     const safeUser = {
+        _id: user._id.toString(),
         name: user.name,
         email: user.email,
         role: user.role,
-        isActive: user.isVerified,
+        isVerified: user.isVerified,
     };
+    // Use setUserState helper for consistency (ttl 15 minutes)
     await (0, authState_1.setUserState)(user._id.toString(), safeUser);
     res.status(200).json({
         success: true,
@@ -128,47 +139,71 @@ exports.loginUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
 exports.refreshAccessToken = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const token = req.cookies.refreshToken;
     if (!token)
-        throw new AppError_1.AppError(401, "Refresh token is required Please login again.");
+        throw new AppError_1.AppError(401, "Refresh token is required. Please login again.");
     let decoded;
     try {
         decoded = (0, token_1.verifyRefreshToken)(token);
     }
     catch (error) {
-        throw new AppError_1.AppError(401, "Refresh token expired or invalid Please login again.");
+        throw new AppError_1.AppError(401, "Refresh token expired or invalid. Please login again.");
     }
-    let user = await redis_1.redis.get(decoded.id);
-    if (!user) {
-        user = await user_model_1.User.findById(decoded.id);
-        if (user) {
-            const userWithoutPassword = { ...user.toObject(), password: undefined };
-            await redis_1.redis.set(decoded.id, JSON.stringify(userWithoutPassword), "EX", 15 * 60);
+    // Verify refresh token against Redis
+    const storedRefreshToken = await redis_1.redis.get(`refresh_token:${decoded.id}`);
+    if (!storedRefreshToken || storedRefreshToken !== token) {
+        throw new AppError_1.AppError(401, "Invalid refresh token. Please login again.");
+    }
+    // Get user data (cache-first)
+    let cached = await (async () => {
+        try {
+            return await redis_1.redis.get(`userState:${decoded.id}`);
         }
+        catch {
+            return null;
+        }
+    })();
+    let user;
+    if (!cached) {
+        user = await user_model_1.User.findById(decoded.id).select("-password").lean();
+        if (!user)
+            throw new AppError_1.AppError(404, "User not found!");
+        await (0, authState_1.setUserState)(decoded.id, user);
     }
     else {
-        user = JSON.parse(user);
+        user = JSON.parse(cached);
     }
-    if (!user)
-        throw new AppError_1.AppError(404, "User not found!");
-    const accessToken = (0, token_1.generateAccessToken)({ id: user._id, role: user.role });
-    // Update Redis cache with fresh user data
-    const userWithoutPassword = { ...user.toObject(), password: undefined };
-    await redis_1.redis.set(user._id.toString(), JSON.stringify(userWithoutPassword), "EX", 15 * 60);
+    const safeUser = {
+        _id: user._id ? user._id.toString() : decoded.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+    };
+    await (0, authState_1.setUserState)(decoded.id, safeUser);
+    const accessToken = (0, token_1.generateAccessToken)({ id: decoded.id, role: user.role });
     (0, cookie_1.setAccessTokenCookie)(res, accessToken);
-    res.status(200).json({ success: true, message: "Access token refreshed" });
+    res.status(200).json({
+        success: true,
+        message: "Access token refreshed successfully",
+        data: safeUser
+    });
 });
 // Social auth
 exports.socialAuth = (0, catchAsync_1.catchAsync)(async (req, res) => {
     const { email, name, avatar } = req.body;
+    if (!email)
+        throw new AppError_1.AppError(400, "Email is required for social auth");
     let user = await user_model_1.User.findOne({ email });
     if (!user) {
+        // create user (no password)
         user = await user_model_1.User.create({ email, name, avatar, isVerified: true });
     }
     const accessToken = (0, token_1.generateAccessToken)({ id: user._id, role: user.role });
     const refreshToken = (0, token_1.generateRefreshToken)({ id: user._id });
-    await user_model_1.User.findByIdAndUpdate(user._id, { refreshToken });
+    // Store refresh token in Redis (not DB)
+    await redis_1.redis.set(`refresh_token:${user._id}`, refreshToken, "EX", 7 * 24 * 60 * 60);
     (0, cookie_1.setAuthCookies)(res, accessToken, refreshToken);
-    const userWithoutPassword = { ...user.toObject(), password: undefined };
-    await redis_1.redis.set(`user:${user._id}`, JSON.stringify(userWithoutPassword), "EX", 15 * 60);
+    const userWithoutPassword = { _id: user._id.toString(), name: user.name, email: user.email, role: user.role, isVerified: user.isVerified };
+    await (0, authState_1.setUserState)(user._id.toString(), userWithoutPassword);
     res.status(200).json({
         success: true,
         message: user.isNew ? "User created successfully" : "User login successful",
@@ -192,17 +227,13 @@ exports.forgetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
         await (0, email_1.sendActivationEmail)(email, `Your reset password OTP is: ${otp}`);
     }
     catch (err) {
-        // If email sending fails, clear the OTP fields
         user.passwordResetToken = undefined;
         user.passwordResetExpire = undefined;
         await user.save({ validateBeforeSave: false });
         console.error("Failed to send reset email:", err);
         throw new AppError_1.AppError(500, "Failed to send reset OTP. Please try again later.");
     }
-    res.status(200).json({
-        success: true,
-        message: "Password reset OTP sent to your email",
-    });
+    res.status(200).json({ success: true, message: "Password reset OTP sent to your email" });
 });
 // Reset password
 exports.resetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
@@ -224,9 +255,15 @@ exports.resetPassword = (0, catchAsync_1.catchAsync)(async (req, res) => {
 });
 // Logout user
 exports.logoutUser = (0, catchAsync_1.catchAsync)(async (req, res) => {
+    const userId = req.user?._id;
+    if (userId) {
+        // Redis থেকে refresh token AND user state delete করুন
+        await redis_1.redis.del(`refresh_token:${userId}`);
+        await (0, authState_1.deleteUserState)(userId.toString());
+    }
+    // Cookies clear (explicit options to match set cookie)
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
-    await redis_1.redis.del(req.user._id);
     res.status(200).json({ success: true, message: "Logged out successfully" });
 });
 // Update user profile
@@ -235,7 +272,19 @@ exports.updateProfile = (0, catchAsync_1.catchAsync)(async (req, res) => {
     if (phone && !user_model_1.phoneRegex.test(phone)) {
         throw new AppError_1.AppError(400, "Please provide a valid Bangladesh phone number!");
     }
-    const user = await user_model_1.User.findByIdAndUpdate(req.user._id, { name, phone }, { new: true });
+    const user = await user_model_1.User.findByIdAndUpdate(req.user._id, { name, phone }, { new: true, runValidators: true }).select("-password");
+    // Update cache
+    if (user) {
+        const cachedUser = {
+            _id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            isVerified: user.isVerified,
+            ...(user.phone && { phone: user.phone }),
+        };
+        await (0, authState_1.setUserState)(user._id.toString(), cachedUser);
+    }
     res.status(200).json({
         success: true,
         message: "Profile updated successfully",
