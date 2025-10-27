@@ -28,7 +28,7 @@ export const setAccessTokenCookie = ( res: Response, accessToken: string ) => {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     secure: config.nodeEnv === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 };
