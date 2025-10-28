@@ -93,7 +93,7 @@ export const getAllIssues = catchAsync(async (req: Request, res: Response) => {
     message: "All issues fetched successfully",
     total,
     pagination: { page: pageNumber, limit: limitNumber, pages: Math.ceil(total / limitNumber) },
-    issues,
+    issues, 
   });
 });
 

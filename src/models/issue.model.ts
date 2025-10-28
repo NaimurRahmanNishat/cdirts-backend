@@ -92,6 +92,6 @@ const issueSchema = new Schema<IIssue>(
 );
 
 // Full-text search index
-issueSchema.index({ title: "text", description: "text", location: "text" });
+issueSchema.index({ title: "text", category: "text", description: "text", location: "text" });
 
 export const Issue = mongoose.model<IIssue>("Issue", issueSchema);

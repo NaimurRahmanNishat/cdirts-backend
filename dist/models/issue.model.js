@@ -103,6 +103,6 @@ const issueSchema = new mongoose_1.Schema({
     approvedAt: { type: Date, default: null },
 }, { timestamps: true });
 // Full-text search index
-issueSchema.index({ title: "text", description: "text", location: "text" });
+issueSchema.index({ title: "text", category: "text", description: "text", location: "text" });
 exports.Issue = mongoose_1.default.model("Issue", issueSchema);
 //# sourceMappingURL=issue.model.js.map
