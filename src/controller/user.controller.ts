@@ -268,7 +268,7 @@ export const forgetPassword = catchAsync(async (req: Request, res: Response) => 
 export const resetPassword = catchAsync(async (req: Request, res: Response) => {
   const { otp, newPassword } = req.body;
   if (!otp || !newPassword) {
-    throw new AppError(400, "OTP and new password are required");
+    throw new AppError(500, "OTP and new password are required");
   }
 
   const user = await User.findOne({
