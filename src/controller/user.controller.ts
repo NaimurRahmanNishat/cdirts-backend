@@ -136,9 +136,7 @@ export const loginUser = catchAsync(async (req: Request, res: Response) => {
 
   // Safe user data
   const safeUser = {
-    _id: user._id.toString(),
     name: user.name,
-    email: user.email,
     role: user.role,
     isVerified: user.isVerified,
   };
@@ -186,9 +184,7 @@ export const refreshAccessToken = catchAsync(async (req: Request, res: Response)
   }
 
   const safeUser = {
-    _id: user._id ? user._id.toString() : decoded.id,
     name: user.name,
-    email: user.email,
     role: user.role,
     isVerified: user.isVerified,
   };

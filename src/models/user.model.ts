@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 
+export type Role = "user" | "categoryadmin" | "admin";
+
 // User Interface
 export interface IUser extends mongoose.Document {
   _id: string;
@@ -10,7 +12,7 @@ export interface IUser extends mongoose.Document {
   isVerified: boolean;
   otp?: string;
   otpExpire?: Date;
-  role: "user" | "admin";
+  role: Role;
   avatar?: {
     public_id: string;
     url: string;

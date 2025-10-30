@@ -82,7 +82,7 @@ const issueSchema = new Schema<IIssue>(
       enum: Object.values(IssueStatus),
       default: IssueStatus.PENDING,
     },
-    author: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    author: { type: Schema.Types.ObjectId, ref: "User" },
     reviews: [{ type: Schema.Types.ObjectId, ref: "Review" }],
     date: { type: Date, default: Date.now },
     approvedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },

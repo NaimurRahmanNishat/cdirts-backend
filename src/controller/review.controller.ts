@@ -29,7 +29,6 @@ export const createReview = catchAsync(async (req: AuthRequest, res: Response) =
   res.status(201).json({ success: true, message: "Review added successfully!", data: newReview });
 });
 
-
 // Add reply to a review (authenticated user)
 export const addReplyToReview = catchAsync(async (req: AuthRequest, res: Response) => {
   const { reviewId } = req.params;
